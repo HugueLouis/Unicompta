@@ -4,6 +4,19 @@ import os, re, shutil
 from datetime import date
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import gnucash
+
+from gnucash import (
+    Account,
+    Book,
+    GncCommodity,
+    GncNumeric,
+    Transaction,
+    Session,
+    SessionOpenMode,
+    Split,
+)
+
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -99,6 +112,8 @@ class App(BASE):
         self.configure(bg=WHITE)
         self.resizable(True, True)
         self.pdf_path = tk.StringVar()
+        self.option_add("*TCombobox*Listbox.font", ("Helvetica", 18))
+        self.option_add("*TCombobox.font", ("Helvetica", 18))
         self._build()
         self._center()
 
@@ -112,13 +127,10 @@ class App(BASE):
         self.pole_var.set(poles[0] if poles else "")
         self._refresh_preview()
 
-    def _combobox(self, parent, **kwargs):
-        return ttk.Combobox(parent, font=("Helvetica", 18), **kwargs)
-
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build(self):
-        outer = tk.Frame(self, bg=WHITE, padx=100, pady=30)
+        outer = tk.Frame(self, bg=WHITE, padx=28, pady=24)
         outer.pack(fill="both", expand=True)
 
         # Title
@@ -132,18 +144,18 @@ class App(BASE):
         # Date
         self.date_var = tk.StringVar(value=date.today().isoformat())
         self._field(form, 0, "Date (YYYY-MM-DD)", tk.Entry(
-            form, textvariable=self.date_var, **self._entry_kw()))
+            form, textvariable=self.date_var, **self._entry_kw(width=10)))
 
         # Catégorie
         self.cat_var = tk.StringVar(value="Pôle")
-        self._field(form, 1, "Catégorie", self._combobox(
+        self._field(form, 1, "Catégorie", ttk.Combobox(
             form, textvariable=self.cat_var,
-            values=["Pôle", "Comité"], state="readonly", width=18))
+            values=["Pôle", "Comité"], state="readonly", width=10))
 
         # Pôle
         self.pole_var = tk.StringVar()
-        self.pole_combo = self._combobox(
-            form, textvariable=self.pole_var, state="readonly", width=28)
+        self.pole_combo = ttk.Combobox(
+            form, textvariable=self.pole_var, state="readonly", width=20)
         self._field(form, 2, "Pôle / Comité", self.pole_combo)
 
         # Update poles when date or category changes
@@ -153,11 +165,11 @@ class App(BASE):
         # Description
         self.desc_var = tk.StringVar()
         self._field(form, 3, "Description", tk.Entry(
-            form, textvariable=self.desc_var, **self._entry_kw(width=28)))
+            form, textvariable=self.desc_var, **self._entry_kw(width=40)))
 
         # Type of charge
         self.type_var = tk.StringVar(value="REMB") # TODO
-        self._field(form, 4, "Charge", self._combobox(
+        self._field(form, 4, "Charge", ttk.Combobox(
             form, textvariable=self.type_var,
             values=["REMB", "FACT"], state="readonly", width=10))
 
@@ -176,7 +188,7 @@ class App(BASE):
             text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
             relief="flat", bd=0, cursor="hand2",
-            width=36, height=6,
+            width=70, height=6,
         )
         self.drop.pack(pady=(0, 6))
         self.drop.bind("<Button-1>", self._pick)
@@ -191,7 +203,7 @@ class App(BASE):
             border_frame,
             text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
-            cursor="hand2", padx=20, pady=16, width=32, height=5,
+            cursor="hand2", padx=20, pady=16, width=80, height=5,
         )
         self.drop.pack()
         self.drop.bind("<Button-1>", self._pick)
@@ -217,7 +229,7 @@ class App(BASE):
             outer, text="  Déposer  ", command=self._submit,
             bg=BLUE, fg=WHITE, activebackground="#1D4ED8", activeforeground=WHITE,
             font=("Helvetica", 11, "bold"), relief="flat",
-            padx=14, pady=8, cursor="hand2", bd=0,
+            padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
         )
         btn.pack(pady=(14, 0))
         self._on_cat_change()  # populate on startup
