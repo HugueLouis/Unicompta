@@ -14,68 +14,75 @@ except ImportError:
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
-BASE_DIR_OUTFLOW = os.path.expanduser("~/Documents/UPSecretariat/4 - Justifications Sorties (S)")   # dossier racine
+BASE_DIR_OUTFLOW = os.path.expanduser("~/Documents/UPSecretrariat/4 - Justifications Sorties (S)/")   # dossier racine
+DEBUG = 1
 
-
-#TODO Change the way it chooses the folder of the pole inside Pole/Comite
-#TODO
+#TODO Change the way it chooses the folder of "2 - DDR" "3 - FACT"
+#TODO 
 #TODO make it register a line in gnucash in addition to saving the file to the right place
 
-POLES = {
-    "Apiculture":    "API",
-    "Bibliojets": "BIBLIO",
-    "Canard huppé":  "CANARD",
-    "Castor freegan":  "CASTOR",
-    "CLUB":    "CLUB",
-    "EVA/EDA/PBU":    "EVA",
-    "Fix N Replace FNR":"(FNR)",
-    "Ingénieur·e·s Engagé·e·s IE":"(IE)",
-    "Jardin ":"(JARDIN)",
-    "LowTech Lab ":"(LOWTECH)",
-    "Meubléco ":"(MEUBLE)",
-    "ScobyPoly ":"(SCOBY)",
-    "Semaine de la durablité DUDU ":"(DUDU)",
-    "UP Fashion Lab UPFL":"(UPFL)",
-}   
-POLES_COMITE = {
-    "Charges extraordinaires (EXTRA)":"EXTRA",
-    "Cohésion (COHE)":"COHE",
-    "Communication (COM)":"COM",
-    "Événementiel (EVENT)":"EVENT",
-    "Fédérond (FED)":"FED",
-    "Fonctionnement (FONCT)":"FONCT",
-    "La Convergence (CONVER)":"CONVER",
-    "Local (LOCAL)":"LOCAL",
-    "Logistique (LOG)":"LOG",
-    "Mobility (MOBILITY)":"MOBILITY",
-    "On a les crocs (OALC)":"OALC",
-    "Politique (POL)":"POL",
-    "Reprographie (REPRO)":"REPRO",
-}
+#POLES = {
+#    "Apiculture":    "API",
+#    "Bibliojets": "BIBLIO",
+#    "Canard huppé":  "CANARD",
+#    "Castor freegan":  "CASTOR",
+#    "CLUB":    "CLUB",
+#    "EVA/EDA/PBU":    "EVA",
+#    "Fix N Replace FNR":"(FNR)",
+#    "Ingénieur·e·s Engagé·e·s IE":"(IE)",
+#    "Jardin ":"(JARDIN)",
+#    "LowTech Lab ":"(LOWTECH)",
+#    "Meubléco ":"(MEUBLE)",
+#    "ScobyPoly ":"(SCOBY)",
+#    "Semaine de la durablité DUDU ":"(DUDU)",
+#    "UP Fashion Lab UPFL":"(UPFL)",
+#}   
+#POLES_COMITE = {
+#    "Charges extraordinaires (EXTRA)":"EXTRA",
+#    "Cohésion (COHE)":"COHE",
+#    "Communication (COM)":"COM",
+#    "Événementiel (EVENT)":"EVENT",
+#    "Fédérond (FED)":"FED",
+#    "Fonctionnement (FONCT)":"FONCT",
+#    "La Convergence (CONVER)":"CONVER",
+#    "Local (LOCAL)":"LOCAL",
+#    "Logistique (LOG)":"LOG",
+#    "Mobility (MOBILITY)":"MOBILITY",
+#    "On a les crocs (OALC)":"OALC",
+#    "Politique (POL)":"POL",
+#    "Reprographie (REPRO)":"REPRO",
+#}
+
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
-def folder_outflow_for_year(d: date) -> str :
-    y = d.year
-    if d.month >= 9:
-        return os.path.join(BASE_DIR_OUTFLOW, f"{str(y)}-{str(y + 1)}")
-    return os.path.join(BASE_DIR_OUTFLOW, f"{str(y - 1)}-{str(y)}")
 
-def target_folder(category: str, pole: str, d : date) -> str:
-    if category == "comité":
-        return os.path.join( folder_outflow_for_year(d) , "Comité", ... ) #TODO
-    return os.path.join( folder_outflow_for_year(d) , "Pôles", ... )
+def folder_for_year_category(category: str,d: date) -> str :
+    y = d.year
+    ystr = f"{str(y)}-{str(y + 1)}" if d.month >= 9 else f"{str(y - 1)}-{str(y)}"
+    if category == "Comité":
+        return os.path.join(BASE_DIR_OUTFLOW, ystr , "Comité")
+    return os.path.join(BASE_DIR_OUTFLOW ,ystr , "Pôles")
+
+def target_folder( d : date,category: str, pole: str, doc_type : str) -> str:
+    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - FACT" #TODO
+    if category == "Comité":
+        return os.path.join(folder_for_year_category(category, d), pole,doc_type_folder )
+    return os.path.join( folder_for_year_category(category, d), pole,doc_type_folder)
 
 # ── LOGIQUE DU NOM ────────────────────────────────────────────────────
 
 def year_code(d: date) -> str:
-    """S2526 pour l'année académique 2025-2026."""
     y = d.year
-    if d.month >= 9:
+    if d.month >= 9: # after september take n to n+1
         return f"S{str(y)[2:]}{str(y + 1)[2:]}"
+    # otherwise take n-1 to n
     return f"S{str(y - 1)[2:]}{str(y)[2:]}"
 
 def pole_code(pole: str) -> str:
-    return POLES.get(pole)
+    m = re.search(r'\((\w+)\)', pole)
+    if m:
+        return m.group(1)
+    raise ValueError(f"Folder '{pole}' is badly formatted (expected a (CODE) suffix)")
 
 def next_number(folder: str) -> int:
     if not os.path.exists(folder):
@@ -89,10 +96,24 @@ def next_number(folder: str) -> int:
     return max(nums) + 1 if nums else 1
 
 def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
-    folder = target_folder(category, pole)
+    folder = target_folder(d,category, pole,doc_type)
     n      = next_number(folder)
+    print(d,category, pole, doc_type)
     return f"{year_code(d)}-{pole_code(pole)}-{doc_type}-{n}.pdf"
 
+# ── Search existing folders ────────────────────────────────────────────────
+
+def get_poles(category: str, d: date) -> list[str]:
+    """Return subfolder names under the relevant Pôles or Comité directory."""
+    base = folder_for_year_category(category, d)
+    print(base)
+    if not os.path.exists(base):
+        print("Path does not exist")
+        return []
+    return sorted([
+        f for f in os.listdir(base)
+        if os.path.isdir(os.path.join(base, f))
+    ])
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -114,6 +135,16 @@ class App(BASE):
         self._build()
         self._center()
 
+    def _on_cat_change(self, *_):
+        try:
+            d = date.fromisoformat(self.date_var.get())
+        except ValueError:
+            d = date.today()
+        poles = get_poles(self.cat_var.get(), d)
+        self.pole_combo["values"] = poles
+        self.pole_var.set(poles[0] if poles else "")
+        self._refresh_preview()
+
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build(self):
@@ -134,22 +165,20 @@ class App(BASE):
             form, textvariable=self.date_var, **self._entry_kw()))
 
         # Catégorie
-        self.cat_var = tk.StringVar(value="pôle")
+        self.cat_var = tk.StringVar(value="Pôle")
         self._field(form, 1, "Catégorie", ttk.Combobox(
             form, textvariable=self.cat_var,
-            values=["pôle", "comité"], state="readonly", width=14))
+            values=["Pôle", "Comité"], state="readonly", width=14))
 
         # Pôle
-        if (self.cat_var == "pôle"):
-            self.pole_var = tk.StringVar(value=list(POLES.keys())[0])
-            self._field(form, 2, "Pôle", ttk.Combobox(
-            form, textvariable=self.pole_var,
-            values=list(POLES.keys()), state="readonly", width=18))
-        else :
-            self.pole_var = tk.StringVar(value=list(POLES_COMITE.keys())[0])
-            self._field(form, 2, "Pôle du comité", ttk.Combobox(
-            form, textvariable=self.pole_var,
-            values=list(POLES_COMITE.keys()), state="readonly", width=18))
+        self.pole_var = tk.StringVar()
+        self.pole_combo = ttk.Combobox(
+            form, textvariable=self.pole_var, state="readonly", width=28)
+        self._field(form, 2, "Pôle / Comité", self.pole_combo)
+
+        # Update poles when date or category changes
+        self.date_var.trace_add("write", self._on_cat_change)
+        self.cat_var.trace_add("write", self._on_cat_change)
         
         # Description
         self.desc_var = tk.StringVar(value=" pouet ...")
@@ -157,7 +186,7 @@ class App(BASE):
             form, textvariable=self.desc_var, **self._entry_kw(width=28)))
 
         # Type of charge
-        self.type_var = tk.StringVar(value="REMB")
+        self.type_var = tk.StringVar(value="REMB") # TODO
         self._field(form, 4, "Charge", ttk.Combobox(
             form, textvariable=self.type_var,
             values=["REMB", "FACT"], state="readonly", width=10))
@@ -221,6 +250,8 @@ class App(BASE):
             padx=14, pady=8, cursor="hand2", bd=0,
         )
         btn.pack(pady=(14, 0))
+        self._on_cat_change()  # populate on startup
+
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 10),
@@ -261,8 +292,8 @@ class App(BASE):
         try:
             d = date.fromisoformat(self.date_var.get())
             name = build_filename(d, self.cat_var.get(),
-                                  self.pole_var.get(), self.type_var.get())
-            folder = target_folder(self.cat_var.get(), self.pole_var.get())
+                                self.pole_var.get(), self.type_var.get())
+            folder = target_folder(d, self.cat_var.get(), self.pole_var.get(),self.type_var.get())  # ← d, not string
             self.preview_var.set(f"→  {os.path.join(folder, name)}")
         except Exception:
             self.preview_var.set("")
@@ -277,10 +308,11 @@ class App(BASE):
             messagebox.showerror("Erreur", "Format de date invalide.\nUtilisez YYYY-MM-DD.")
             return
 
+        date = self.date_var.get()
         category = self.cat_var.get()
         pole     = self.pole_var.get()
         doc_type = self.type_var.get()
-        folder   = target_folder(category, pole)
+        folder   = target_folder(date,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
         dest     = os.path.join(folder, filename)
 
