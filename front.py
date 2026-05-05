@@ -15,19 +15,18 @@ except ImportError:
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
 BASE_DIR_OUTFLOW = os.path.expanduser("~/Documents/UPSecretrariat/4 - Justifications Sorties (S)/")   # dossier racine
-DEBUG = 1
+DEBUG = 0
 
 #TODO Change the way it chooses the folder of "2 - DDR" "3 - FACT"
-#TODO 
 #TODO make it register a line in gnucash in addition to saving the file to the right place
-
+#TODO older name wasn't "Pôles" but "Pôles d'activités"
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
 
 def folder_for_year_category(category: str,d: date) -> str :
     y = d.year
     ystr = f"{str(y)}-{str(y + 1)}" if d.month >= 9 else f"{str(y - 1)}-{str(y)}"
-    if category == "Comité":
+    if category == "Comité": #TODO
         return os.path.join(BASE_DIR_OUTFLOW, ystr , "Comité")
     return os.path.join(BASE_DIR_OUTFLOW ,ystr , "Pôles")
 
@@ -66,7 +65,7 @@ def next_number(folder: str) -> int:
 def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
     folder = target_folder(d,category, pole,doc_type)
     n      = next_number(folder)
-    print(d,category, pole, doc_type)
+    if DEBUG : print(d,category, pole, doc_type)
     return f"{year_code(d)}-{pole_code(pole)}-{doc_type}-{n}.pdf"
 
 # ── Search existing folders ────────────────────────────────────────────────
@@ -74,9 +73,9 @@ def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
 def get_poles(category: str, d: date) -> list[str]:
     """Return subfolder names under the relevant Pôles or Comité directory."""
     base = folder_for_year_category(category, d)
-    print(base)
+    if DEBUG : print(base)
     if not os.path.exists(base):
-        print("Path does not exist")
+        print(f"Path {base} does not exist")
         return []
     return sorted([
         f for f in os.listdir(base)
@@ -98,7 +97,7 @@ class App(BASE):
         super().__init__()
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.pdf_path = tk.StringVar()
         self._build()
         self._center()
@@ -119,7 +118,7 @@ class App(BASE):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build(self):
-        outer = tk.Frame(self, bg=WHITE, padx=40, pady=30)
+        outer = tk.Frame(self, bg=WHITE, padx=100, pady=30)
         outer.pack(fill="both", expand=True)
 
         # Title
@@ -152,7 +151,7 @@ class App(BASE):
         self.cat_var.trace_add("write", self._on_cat_change)
         
         # Description
-        self.desc_var = tk.StringVar(value=" pouet ...")
+        self.desc_var = tk.StringVar()
         self._field(form, 3, "Description", tk.Entry(
             form, textvariable=self.desc_var, **self._entry_kw(width=28)))
 
@@ -163,7 +162,7 @@ class App(BASE):
             values=["REMB", "FACT"], state="readonly", width=10))
 
         # Amount
-        self.amount_var = tk.StringVar(value="0")
+        self.amount_var = tk.StringVar()
         self._field(form, 5, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
 
@@ -206,7 +205,7 @@ class App(BASE):
         # Filename preview
         self.preview_var = tk.StringVar(value="")
         self.preview_lbl = tk.Label(outer, textvariable=self.preview_var,
-                                    font=("Courier", 12), fg=GRAY, bg=WHITE)
+                                    font=("Helvetica", 18), fg=TEXT, bg=WHITE)
         self.preview_lbl.pack(anchor="w")
 
         for v in (self.date_var, self.cat_var, self.pole_var, self.type_var):
@@ -264,8 +263,8 @@ class App(BASE):
             d = date.fromisoformat(self.date_var.get())
             name = build_filename(d, self.cat_var.get(),
                                 self.pole_var.get(), self.type_var.get())
-            folder = target_folder(d, self.cat_var.get(), self.pole_var.get(),self.type_var.get())  # ← d, not string
-            self.preview_var.set(f"→  {os.path.join(folder, name)}")
+            folder = target_folder(d, self.cat_var.get(), self.pole_var.get(),self.type_var.get())
+            self.preview_var.set(f"→  {os.path.join(folder, name)[len(BASE_DIR_OUTFLOW):]}")
         except Exception:
             self.preview_var.set("")
 
@@ -290,7 +289,7 @@ class App(BASE):
         os.makedirs(folder, exist_ok=True)
         shutil.copy2(self.pdf_path.get(), dest)
 
-        messagebox.showinfo("Succès ✓", f"Fichier enregistré :\n\n{dest}")
+        messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
         self._reset()
 
     def _reset(self):
