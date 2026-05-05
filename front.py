@@ -21,38 +21,6 @@ DEBUG = 1
 #TODO 
 #TODO make it register a line in gnucash in addition to saving the file to the right place
 
-#POLES = {
-#    "Apiculture":    "API",
-#    "Bibliojets": "BIBLIO",
-#    "Canard huppé":  "CANARD",
-#    "Castor freegan":  "CASTOR",
-#    "CLUB":    "CLUB",
-#    "EVA/EDA/PBU":    "EVA",
-#    "Fix N Replace FNR":"(FNR)",
-#    "Ingénieur·e·s Engagé·e·s IE":"(IE)",
-#    "Jardin ":"(JARDIN)",
-#    "LowTech Lab ":"(LOWTECH)",
-#    "Meubléco ":"(MEUBLE)",
-#    "ScobyPoly ":"(SCOBY)",
-#    "Semaine de la durablité DUDU ":"(DUDU)",
-#    "UP Fashion Lab UPFL":"(UPFL)",
-#}   
-#POLES_COMITE = {
-#    "Charges extraordinaires (EXTRA)":"EXTRA",
-#    "Cohésion (COHE)":"COHE",
-#    "Communication (COM)":"COM",
-#    "Événementiel (EVENT)":"EVENT",
-#    "Fédérond (FED)":"FED",
-#    "Fonctionnement (FONCT)":"FONCT",
-#    "La Convergence (CONVER)":"CONVER",
-#    "Local (LOCAL)":"LOCAL",
-#    "Logistique (LOG)":"LOG",
-#    "Mobility (MOBILITY)":"MOBILITY",
-#    "On a les crocs (OALC)":"OALC",
-#    "Politique (POL)":"POL",
-#    "Reprographie (REPRO)":"REPRO",
-#}
-
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
 
@@ -145,10 +113,13 @@ class App(BASE):
         self.pole_var.set(poles[0] if poles else "")
         self._refresh_preview()
 
+    def _combobox(self, parent, **kwargs):
+        return ttk.Combobox(parent, font=("Helvetica", 18), **kwargs)
+
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build(self):
-        outer = tk.Frame(self, bg=WHITE, padx=28, pady=24)
+        outer = tk.Frame(self, bg=WHITE, padx=40, pady=30)
         outer.pack(fill="both", expand=True)
 
         # Title
@@ -166,13 +137,13 @@ class App(BASE):
 
         # Catégorie
         self.cat_var = tk.StringVar(value="Pôle")
-        self._field(form, 1, "Catégorie", ttk.Combobox(
+        self._field(form, 1, "Catégorie", self._combobox(
             form, textvariable=self.cat_var,
-            values=["Pôle", "Comité"], state="readonly", width=14))
+            values=["Pôle", "Comité"], state="readonly", width=18))
 
         # Pôle
         self.pole_var = tk.StringVar()
-        self.pole_combo = ttk.Combobox(
+        self.pole_combo = self._combobox(
             form, textvariable=self.pole_var, state="readonly", width=28)
         self._field(form, 2, "Pôle / Comité", self.pole_combo)
 
@@ -187,14 +158,14 @@ class App(BASE):
 
         # Type of charge
         self.type_var = tk.StringVar(value="REMB") # TODO
-        self._field(form, 4, "Charge", ttk.Combobox(
+        self._field(form, 4, "Charge", self._combobox(
             form, textvariable=self.type_var,
             values=["REMB", "FACT"], state="readonly", width=10))
 
-        # Montant
-        #self.amount_var = tk.StringVar(value="0")
-        #self._field(form, 5, "Montant (chf)", tk.Entry(
-        #    form, textvariable=self.amount_var, **self._entry_kw(width=14)))
+        # Amount
+        self.amount_var = tk.StringVar(value="0")
+        self._field(form, 5, "Montant (chf)", tk.Entry(
+            form, textvariable=self.amount_var, **self._entry_kw(width=14)))
 
         # Separator
         sep = tk.Frame(outer, height=1, bg=BORDER)
@@ -235,7 +206,7 @@ class App(BASE):
         # Filename preview
         self.preview_var = tk.StringVar(value="")
         self.preview_lbl = tk.Label(outer, textvariable=self.preview_var,
-                                    font=("Courier", 9), fg=GRAY, bg=WHITE)
+                                    font=("Courier", 12), fg=GRAY, bg=WHITE)
         self.preview_lbl.pack(anchor="w")
 
         for v in (self.date_var, self.cat_var, self.pole_var, self.type_var):
@@ -254,14 +225,14 @@ class App(BASE):
 
 
     def _field(self, parent, row, label, widget):
-        tk.Label(parent, text=label, font=("Helvetica", 10),
+        tk.Label(parent, text=label, font=("Helvetica", 18),
                  bg=WHITE, fg=TEXT, anchor="w").grid(
             row=row, column=0, sticky="w", padx=(0, 14), pady=5)
         widget.grid(row=row, column=1, sticky="w", pady=5)
 
-    def _entry_kw(self, width=16):
+    def _entry_kw(self, width=30):
         return dict(
-            font=("Helvetica", 10), fg=TEXT, bg=WHITE,
+            font=("Helvetica", 18), fg=TEXT, bg=WHITE,
             relief="solid", bd=1, highlightthickness=1,
             highlightbackground=BORDER, highlightcolor=BLUE,
             width=width, insertbackground=BLUE,
