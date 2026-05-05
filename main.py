@@ -3,8 +3,8 @@
 import shutil
 from datetime import date
 import tkinter as tk
+import gzip
 from tkinter import ttk, filedialog, messagebox
-
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 
@@ -15,7 +15,8 @@ except ImportError:
     BASE = tk.Tk
     DND_FILES = None
 
-BASE_GNUCASH_FILE = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/Unipoly.gnucash")
+BASE_GNUCASH_FILE = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/Unipoly.gnucash.gz")
+DECOMPRESSED_GNUCASH_FILE = BASE_GNUCASH_FILE[:-len(".gz")]
 BASE_GNUCASH_ACCOUNT = "02-01-Account Payables (AP)"
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ class App(BASE):
         
         # Description
         self.desc_var = tk.StringVar()
-        self._field(form, 3, "Description", tk.Entry(
+        self._field(form, 3, "Name + Description", tk.Entry(
             form, textvariable=self.desc_var, **self._entry_kw(width=40)))
 
         # Type of charge
@@ -226,10 +227,20 @@ class App(BASE):
         shutil.copy2(self.pdf_path.get(), dest)
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
 
-        print(filename[:len(".pdf")] + description)
-        with open_book(BASE_GNUCASH_FILE) as book :
-            print(list_accounts(book,None))
-            #add_transaction(book,filename[:len(".pdf")] + description,date,amount,BASE_GNUCASH_ACCOUNT,)
+        # decompress
+        with gzip.open(BASE_GNUCASH_FILE, "rb") as f_in:
+            with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        print(filename[:-len(".pdf")] + " " + description)
+        #list_all_accounts(DECOMPRESSED_GNUCASH_FILE,3)
+
+
+        # recompress
+        with open(DECOMPRESSED_GNUCASH_FILE, "rb") as f_in:
+            with gzip.open(BASE_GNUCASH_FILE, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
         self._reset()
 
     def _reset(self):
