@@ -26,7 +26,7 @@ def open_book(filepath: str, readonly: bool = False) -> piecash.Book:
         with open_book("personal.gnucash") as book:
             ...
     """
-    return piecash.open_book(filepath, readonly=readonly, open_if_lock=True)
+    return piecash.open_book(filepath, readonly=readonly, open_if_lock=True, check_exists=False)
 
 # ─────────────────────────────────────────────
 # 2. ACCOUNT HELPERS

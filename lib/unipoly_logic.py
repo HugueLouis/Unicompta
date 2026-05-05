@@ -1,4 +1,4 @@
-import os
+import os,re
 from datetime import date
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
@@ -15,12 +15,12 @@ DEBUG = 0
 def folder_for_year_category(category: str,d: date) -> str :
     y = d.year
     ystr = f"{str(y)}-{str(y + 1)}" if d.month >= 9 else f"{str(y - 1)}-{str(y)}"
-    if category == "Comité": #TODO
+    if category == "Comité":
         return os.path.join(BASE_DIR_OUTFLOW, ystr , "Comité")
     return os.path.join(BASE_DIR_OUTFLOW ,ystr , "Pôles")
 
 def target_folder( d : date,category: str, pole: str, doc_type : str) -> str:
-    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - FACT" #TODO
+    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - FACT"
     if category == "Comité":
         return os.path.join(folder_for_year_category(category, d), pole,doc_type_folder )
     return os.path.join( folder_for_year_category(category, d), pole,doc_type_folder)

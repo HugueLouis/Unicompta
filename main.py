@@ -5,8 +5,8 @@ from datetime import date
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-from unipoly_logic import *
-from gnucash_utils import *
+from lib.unipoly_logic import *
+from lib.gnucash_utils import *
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -15,6 +15,8 @@ except ImportError:
     BASE = tk.Tk
     DND_FILES = None
 
+BASE_GNUCASH_FILE = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/Unipoly.gnucash")
+BASE_GNUCASH_ACCOUNT = "02-01-Account Payables (AP)"
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -211,18 +213,23 @@ class App(BASE):
             messagebox.showerror("Erreur", "Format de date invalide.\nUtilisez YYYY-MM-DD.")
             return
 
-        date = self.date_var.get()
         category = self.cat_var.get()
         pole     = self.pole_var.get()
         doc_type = self.type_var.get()
-        folder   = target_folder(date,category, pole,doc_type)
+        description = self.desc_var.get()
+        amount = self.amount_var.get()
+        folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
         dest     = os.path.join(folder, filename)
 
         os.makedirs(folder, exist_ok=True)
         shutil.copy2(self.pdf_path.get(), dest)
-
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
+
+        print(filename[:len(".pdf")] + description)
+        with open_book(BASE_GNUCASH_FILE) as book :
+            print(list_accounts(book,None))
+            #add_transaction(book,filename[:len(".pdf")] + description,date,amount,BASE_GNUCASH_ACCOUNT,)
         self._reset()
 
     def _reset(self):
