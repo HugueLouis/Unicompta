@@ -12,7 +12,7 @@ DEBUG = 0
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
 
-def folder_for_year_category(category: str,d: date) -> str :
+def folder_for_year_category(d: date, category: str) -> str :
     y = d.year
     ystr = f"{str(y)}-{str(y + 1)}" if d.month >= 9 else f"{str(y - 1)}-{str(y)}"
     if category == "Comité":
@@ -22,8 +22,8 @@ def folder_for_year_category(category: str,d: date) -> str :
 def target_folder( d : date,category: str, pole: str, doc_type : str) -> str:
     doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - FACT"
     if category == "Comité":
-        return os.path.join(folder_for_year_category(category, d), pole,doc_type_folder )
-    return os.path.join( folder_for_year_category(category, d), pole,doc_type_folder)
+        return os.path.join(folder_for_year_category( d,category), pole,doc_type_folder )
+    return os.path.join( folder_for_year_category(d,category), pole,doc_type_folder)
 
 # ── LOGIQUE DU NOM ────────────────────────────────────────────────────
 
@@ -59,9 +59,9 @@ def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
 
 # ── Search existing folders ────────────────────────────────────────────────
 
-def get_poles(category: str, d: date) -> list[str]:
+def get_poles( d: date,category: str) -> list[str]:
     """Return subfolder names under the relevant Pôles or Comité directory."""
-    base = folder_for_year_category(category, d)
+    base = folder_for_year_category(d, category)
     if DEBUG : print(base)
     if not os.path.exists(base):
         print(f"Path {base} does not exist")

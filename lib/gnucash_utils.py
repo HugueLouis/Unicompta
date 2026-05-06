@@ -4,31 +4,27 @@ from gnucash.gnucash_core_c import ACCT_TYPE_ASSET, ACCT_TYPE_EXPENSE  # etc.
 from decimal import Decimal
 import datetime
 
-def list_accounts_rec(account,max, indent=0):
+def list_all_accounts(account,max, indent=0):
     print("  " * indent+ f"{indent} : " + account.GetName())
     if indent >= max :
         return
     else:
         for child in account.get_children():
-            list_accounts_rec(child, max, indent + 1)
+            list_all_accounts(child, max, indent + 1)
 
-def list_all_accounts(abs_file_path,max):
-    session = gnucash.Session("xml://"+ abs_file_path)
-    try :
-        book = session.book
-        root = book.get_root_account()
-        list_accounts_rec(root,max)
-    finally : 
-        session.end()
 
-def find_account(root, name):
-    if root.GetName() == name:
+
+
+def find_account_including(root, substring, children = False):
+    """ Be carefull it only returns the first one found with the substring, or None if there aren't any"""
+    if substring in root.GetName():
         return root
     for child in root.get_children():
-        result = find_account(child, name)
+        result = find_account_including(child, substring,True)
         if result:
             return result
-    return None
+    if not children : raise Exception(f"oh ohh a tech bro stole your {substring} account")
+    else : return None
 
 def add_transaction(book, from_account, to_account, amount_decimal, description, date=None):
     if date is None:
@@ -39,9 +35,9 @@ def add_transaction(book, from_account, to_account, amount_decimal, description,
     tx = Transaction(book)
     tx.BeginEdit()
 
-    tx.SetCurrency(currency)
-    tx.SetDescription(description)
     tx.SetDate(date.day, date.month, date.year)
+    tx.SetDescription(description)
+    tx.SetCurrency(currency)
 
     # Helper: convert Decimal to GncNumeric (e.g. 12.50 → 1250/100)
     def to_gnc(d):

@@ -7,6 +7,8 @@ import gzip
 from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
+from decimal import Decimal
+from pathlib import Path
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -15,9 +17,11 @@ except ImportError:
     BASE = tk.Tk
     DND_FILES = None
 
-BASE_GNUCASH_FILE = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/Unipoly.gnucash.gz")
+BASE_GNUCASH_FOLDER = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/")
+BASE_GNUCASH_FILE = BASE_GNUCASH_FOLDER+"Unipoly.gnucash.gz"
 DECOMPRESSED_GNUCASH_FILE = BASE_GNUCASH_FILE[:-len(".gz")]
-BASE_GNUCASH_ACCOUNT = "02-01-Account Payables (AP)"
+CHARGES_ACT_NAME = "03-Charges"
+ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -46,7 +50,7 @@ class App(BASE):
             d = date.fromisoformat(self.date_var.get())
         except ValueError:
             d = date.today()
-        poles = get_poles(self.cat_var.get(), d)
+        poles = get_poles(d, self.cat_var.get())
         self.pole_combo["values"] = poles
         self.pole_var.set(poles[0] if poles else "")
         self._refresh_preview()
@@ -217,29 +221,38 @@ class App(BASE):
         category = self.cat_var.get()
         pole     = self.pole_var.get()
         doc_type = self.type_var.get()
-        description = self.desc_var.get()
-        amount = self.amount_var.get()
+        amount = Decimal(str(self.amount_var.get()))
         folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
+        description = filename[:-len(".pdf")] + " " + self.desc_var.get()
         dest     = os.path.join(folder, filename)
 
         os.makedirs(folder, exist_ok=True)
         shutil.copy2(self.pdf_path.get(), dest)
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
 
-        # decompress
-        with gzip.open(BASE_GNUCASH_FILE, "rb") as f_in:
-            with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        print(description)
 
-        print(filename[:-len(".pdf")] + " " + description)
-        #list_all_accounts(DECOMPRESSED_GNUCASH_FILE,3)
+        session = gnucash.Session("xml://"+ DECOMPRESSED_GNUCASH_FILE)
+        try :
+            book = session.book
+            root = book.get_root_account()
+            charges_act = find_account_including(root,CHARGES_ACT_NAME)
+            act_payable_act = find_account_including(root,ACT_PAYABLE_ACT_NAME)
+            charges_pole_act = find_account_including(charges_act,"(" + pole_code(pole)+")")
 
+            add_transaction(book,act_payable_act,charges_pole_act,amount,description,d)
+        finally : 
+            session.save()
+            session.end()
 
-        # recompress
-        with open(DECOMPRESSED_GNUCASH_FILE, "rb") as f_in:
-            with gzip.open(BASE_GNUCASH_FILE, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        for path in Path(BASE_GNUCASH_FOLDER).glob("*"):
+            if path.resolve() == Path(DECOMPRESSED_GNUCASH_FILE).resolve() or path.resolve()==Path(BASE_GNUCASH_FILE).resolve() :
+                continue
+            if path.is_file():
+                path.unlink()
+            else:
+                shutil.rmtree(path)
 
         self._reset()
 
