@@ -35,15 +35,32 @@ GRAY   = "#64748B"
 WHITE  = "#FFFFFF"
 GREEN  = "#16A34A"
 
+def clean_gnucash_folder():
+    """ Delete all the files that aren't the gnucash file
+    This is to get rid of all the locks"""
+    
+    for path in Path(BASE_GNUCASH_FOLDER).glob("*"):
+        if path.resolve()==Path(GNUCASH_FILE).resolve() :
+            continue
+        if path.is_file():
+            path.unlink()
+        else:
+            shutil.rmtree(path)
+
 class App(BASE):
     def __init__(self):
         super().__init__()
+        self.session = gnucash.Session("xml://"+ GNUCASH_FILE)
+        self.book = self.session.book
+        self.root = self.book.get_root_account()
+        self.act_payable_act = find_account_including(self.root,ACT_PAYABLE_ACT_NAME)
+        self.charges_act = find_account_including(self.root,CHARGES_ACT_NAME)
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
         self.pdf_path = tk.StringVar()
-        self.option_add("*TCombobox*Listbox.font", ("Helvetica", 18))
-        self.option_add("*TCombobox.font", ("Helvetica", 18))
+        self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
+        self.option_add("*TCombobox.font", ("Helvetica", 17))
         self._build()
         self._center()
 
@@ -52,9 +69,19 @@ class App(BASE):
             d = date.fromisoformat(self.date_var.get())
         except ValueError:
             d = date.today()
+        # update poles scrolling
         poles = get_poles(d, self.cat_var.get())
         self.pole_combo["values"] = poles
         self.pole_var.set(poles[0] if poles else "")
+        self._on_pole_change
+
+    def _on_pole_change(self,*_):
+        # update pole_charge_types scrolling
+        if DEBUG: print( f"from {self.charges_act.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
+        self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
+        pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
+        self.pole_charge_type_var_combo["values"] = pole_charge_types_str
+        self.pole_charge_type_var_str.set(pole_charge_types_str[0] if pole_charge_types_str else "")
         self._refresh_preview()
 
     # ── Layout ────────────────────────────────────────────────────────────────
@@ -92,22 +119,27 @@ class App(BASE):
         self.cat_var.trace_add("write", self._on_cat_change)
 
         # For what type of charge in the pole 
-        #TODO
+        self.pole_charge_type_var_str = tk.StringVar()
+        self.pole_charge_type_var_combo = ttk.Combobox(
+            form, textvariable=self.pole_charge_type_var_str, state="readonly", width=40)
+        self._field(form, 3, "Type of charge of pole", self.pole_charge_type_var_combo)
+        # Update the type of charge type when date or category changes
+        self.pole_var.trace_add("write", self._on_pole_change)
         
         # Description
         self.desc_var = tk.StringVar()
-        self._field(form, 3, "Name + Description", tk.Entry(
+        self._field(form, 4, "Name + Description", tk.Entry(
             form, textvariable=self.desc_var, **self._entry_kw(width=40)))
 
         # Type of charge
-        self.type_var = tk.StringVar(value="REMB") # TODO
-        self._field(form, 4, "Charge", ttk.Combobox(
+        self.type_var = tk.StringVar(value="REMB")
+        self._field(form, 5, "Charge", ttk.Combobox(
             form, textvariable=self.type_var,
             values=["REMB", "FACT"], state="readonly", width=10))
 
         # Amount
         self.amount_var = tk.StringVar()
-        self._field(form, 5, "Montant (chf)", tk.Entry(
+        self._field(form, 6, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
 
         # Separator
@@ -242,7 +274,7 @@ class App(BASE):
         os.makedirs(folder, exist_ok=True)
         shutil.copy2(self.pdf_path.get(), dest)
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
-
+        
         # check if the file is compressed or not 
         type_of_gnucashfile = magic.from_file(GNUCASH_FILE)
         # if it is compressed the decompress it
@@ -254,28 +286,10 @@ class App(BASE):
                     os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
 
         print(description)
-
-        session = gnucash.Session("xml://"+ GNUCASH_FILE)
-        try :
-            book = session.book
-            root = book.get_root_account()
-            charges_act = find_account_including(root,CHARGES_ACT_NAME)
-            act_payable_act = find_account_including(root,ACT_PAYABLE_ACT_NAME)
-            charges_pole_act = find_account_including(charges_act,"(" + pole_code(pole)+")")
-
-            add_transaction(book,act_payable_act,charges_pole_act,amount,description,d)
-        finally : 
-            session.save()
-            session.end()
-
-        # delete all the files that aren't the gnucash file
-        for path in Path(BASE_GNUCASH_FOLDER).glob("*"):
-            if path.resolve()==Path(GNUCASH_FILE).resolve() :
-                continue
-            if path.is_file():
-                path.unlink()
-            else:
-                shutil.rmtree(path)
+        type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
+    
+        add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
+        self.session.save()
 
         self._reset()
 
@@ -302,5 +316,6 @@ class App(BASE):
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    clean_gnucash_folder()
     app = App()
     app.mainloop()
