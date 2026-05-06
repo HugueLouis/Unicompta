@@ -163,7 +163,15 @@ class App(BASE):
             font=("Helvetica", 11, "bold"), relief="flat",
             padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
         )
+        # End button
+        btn_end = tk.Button(
+            outer, text="  Fermer  ", command=self._close,
+            bg=BLUE, fg=WHITE, activebackground="#D8811D", activeforeground=WHITE,
+            font=("Helvetica", 11, "bold"), relief="flat",
+            padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
+        )
         btn.pack(pady=(14, 0))
+        btn_end.pack(pady=(14, 0))
         self._on_cat_change()  # populate on startup
 
 
@@ -278,6 +286,11 @@ class App(BASE):
                          fg=GRAY, bg=LIGHT)
         self.date_var.set(date.today().isoformat())
         self._refresh_preview()
+
+    def _close(self): 
+        self.session.save()
+        self.session.end()
+        exit()
 
     def _center(self):
         self.update_idletasks()

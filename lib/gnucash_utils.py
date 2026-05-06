@@ -13,10 +13,9 @@ def list_all_accounts(account,max, indent=0):
             list_all_accounts(child, max, indent + 1)
 
 
-
-
 def find_account_including(root, substring, children = False):
-    """ Be carefull it only returns the first one found with the substring, or None if there aren't any"""
+    """ Do not use children True
+    Be carefull it only returns the first one found with the substring, or None if there aren't any"""
     if substring in root.GetName():
         return root
     for child in root.get_children():
