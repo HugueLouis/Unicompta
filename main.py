@@ -4,6 +4,7 @@ import shutil
 from datetime import date
 import tkinter as tk
 import gzip
+import magic
 from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
@@ -18,8 +19,9 @@ except ImportError:
     DND_FILES = None
 
 BASE_GNUCASH_FOLDER = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/")
-BASE_GNUCASH_FILE = BASE_GNUCASH_FOLDER+"Unipoly.gnucash.gz"
-DECOMPRESSED_GNUCASH_FILE = BASE_GNUCASH_FILE[:-len(".gz")]
+GNUCASH_FILE = BASE_GNUCASH_FOLDER+"Unipoly.gnucash"
+# Decompressed in the sense that the extension is not .gz
+DECOMPRESSED_GNUCASH_FILE = GNUCASH_FILE + ".temp"
 CHARGES_ACT_NAME = "03-Charges"
 ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
 
@@ -85,10 +87,12 @@ class App(BASE):
         self.pole_combo = ttk.Combobox(
             form, textvariable=self.pole_var, state="readonly", width=20)
         self._field(form, 2, "Pôle / Comité", self.pole_combo)
-
         # Update poles when date or category changes
         self.date_var.trace_add("write", self._on_cat_change)
         self.cat_var.trace_add("write", self._on_cat_change)
+
+        # For what type of charge in the pole 
+        #TODO
         
         # Description
         self.desc_var = tk.StringVar()
@@ -231,9 +235,19 @@ class App(BASE):
         shutil.copy2(self.pdf_path.get(), dest)
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
 
+        # check if the file is compressed or not 
+        type_of_gnucashfile = magic.from_file(GNUCASH_FILE)
+        # if it is compressed the decompress it
+        if "gzip" in type_of_gnucashfile : 
+            # decompress
+            with gzip.open(GNUCASH_FILE, "rb") as f_in:
+                with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
+
         print(description)
 
-        session = gnucash.Session("xml://"+ DECOMPRESSED_GNUCASH_FILE)
+        session = gnucash.Session("xml://"+ GNUCASH_FILE)
         try :
             book = session.book
             root = book.get_root_account()
@@ -246,8 +260,9 @@ class App(BASE):
             session.save()
             session.end()
 
+        # delete all the files that aren't the gnucash file
         for path in Path(BASE_GNUCASH_FOLDER).glob("*"):
-            if path.resolve() == Path(DECOMPRESSED_GNUCASH_FILE).resolve() or path.resolve()==Path(BASE_GNUCASH_FILE).resolve() :
+            if path.resolve()==Path(GNUCASH_FILE).resolve() :
                 continue
             if path.is_file():
                 path.unlink()
@@ -258,6 +273,7 @@ class App(BASE):
 
     def _reset(self):
         self.pdf_path.set("")
+        self.desc_var.set("")
         self.drop.config(text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
                          fg=GRAY, bg=LIGHT)
         self.date_var.set(date.today().isoformat())
