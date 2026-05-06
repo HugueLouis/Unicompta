@@ -18,7 +18,12 @@ except ImportError:
     BASE = tk.Tk
     DND_FILES = None
 
+###########################################
+### USER CHANGES ARE ONLY HERE  ###
 BASE_GNUCASH_FOLDER = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/")
+###########################################
+###########################################
+
 GNUCASH_FILE = BASE_GNUCASH_FOLDER+"Unipoly.gnucash"
 # Decompressed in the sense that the extension is not .gz
 DECOMPRESSED_GNUCASH_FILE = GNUCASH_FILE + ".temp"
