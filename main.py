@@ -46,10 +46,10 @@ class App(BASE):
         super().__init__()
         self.session = gnucash.Session("xml://"+ GNUCASH_FILE)
         self.book = self.session.book
-        self.root = self.book.get_root_account()
-        self.act_payable_act = find_account_including(self.root,ACT_PAYABLE_ACT_NAME)
-        self.act_receivable_act = find_account_including(self.root,ACT_RECEIVABLE_ACT_NAME) 
-        self.charges_act = find_account_including(self.root,CHARGES_ACT_NAME)
+        self.root_act = self.book.get_root_account()
+        self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
+        self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
+        self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
@@ -138,15 +138,17 @@ class App(BASE):
         self._field(form, 6, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
         
-        checkButton_secondCompta = tk.Checkbutton( text = "Inscrire la second comptabilité", 
+        # Second inscription compta
+        self.checkButton_secondCompta = tk.Checkbutton( 
+            form,
             variable = self.second_compta_var , 
             onvalue = True, 
             offvalue = False, 
             height = 2, 
-            width = 30,
-            font= ("Helvetica", 15)
+            width = 5,
+            font= ("Helvetica", 15, "bold")
             )
-        checkButton_secondCompta.pack(pady=(14, 0))
+        self._field(form,7,"Inscrire la second comptabilité",self.checkButton_secondCompta)
 
         # Separator
         sep = tk.Frame(outer, height=1, bg=BORDER)
