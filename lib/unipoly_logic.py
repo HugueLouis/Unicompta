@@ -2,9 +2,20 @@ import os,re
 from datetime import date
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
+CONFIG_FILE = "config"
 
-BASE_DIR_OUTFLOW = os.path.expanduser("~/Documents/UPSecretrariat/4 - Justifications Sorties (S)/")   # dossier racine
-DEBUG = 0
+DEBUG = 1
+with open(CONFIG_FILE) as f : 
+    BASE_DIR = f.readline()
+
+BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine
+BASE_GNUCASH_FOLDER = os.path.expanduser( BASE_DIR +"1 - Comptabilite/")
+GNUCASH_FILE        = os.path.expanduser(BASE_GNUCASH_FOLDER+"Unipoly.gnucash")
+# if need to decompress we decompress into a temp file and delete it after
+DECOMPRESSED_GNUCASH_FILE = GNUCASH_FILE + ".temp"
+CHARGES_ACT_NAME    = "03-Charges"
+ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
+ACT_RECEIVABLE_ACT_NAME = "01-01-Account Receivables (AR)"
 
 #TODO Change the way it chooses the folder of "2 - DDR" "3 - FACT"
 #TODO make it register a line in gnucash in addition to saving the file to the right place

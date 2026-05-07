@@ -18,17 +18,7 @@ except ImportError:
     BASE = tk.Tk
     DND_FILES = None
 
-###########################################
-### USER CHANGES ARE ONLY HERE  ###
-BASE_GNUCASH_FOLDER = os.path.expanduser("~/Documents/UPSecretrariat/1 - Comptabilite/")
-###########################################
-###########################################
-
-GNUCASH_FILE = BASE_GNUCASH_FOLDER+"Unipoly.gnucash"
-# Decompressed in the sense that the extension is not .gz
-DECOMPRESSED_GNUCASH_FILE = GNUCASH_FILE + ".temp"
-CHARGES_ACT_NAME = "03-Charges"
-ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
+DEFAULT_SECOND_COMPTA = True
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -43,7 +33,6 @@ GREEN  = "#16A34A"
 def clean_gnucash_folder():
     """ Delete all the files that aren't the gnucash file
     This is to get rid of all the locks"""
-    
     for path in Path(BASE_GNUCASH_FOLDER).glob("*"):
         if path.resolve()==Path(GNUCASH_FILE).resolve() :
             continue
@@ -321,6 +310,9 @@ class App(BASE):
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    if not os.path.isdir(BASE_DIR):
+        print("The config file should contain a valid path to the folder UPSecretrariat.") 
+        exit()
     clean_gnucash_folder()
     app = App()
     app.mainloop()

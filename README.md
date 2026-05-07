@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 # Setting parameters
 
-### Go into the main file and paste the path to your UPSecretrariat folder
+### Go into the * **config** * file and paste the path to your UPSecretrariat folder
 
 # Running the code
 
