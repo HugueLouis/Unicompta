@@ -48,11 +48,13 @@ class App(BASE):
         self.book = self.session.book
         self.root = self.book.get_root_account()
         self.act_payable_act = find_account_including(self.root,ACT_PAYABLE_ACT_NAME)
+        self.act_receivable_act = find_account_including(self.root,ACT_RECEIVABLE_ACT_NAME) 
         self.charges_act = find_account_including(self.root,CHARGES_ACT_NAME)
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
         self.pdf_path = tk.StringVar()
+        self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
         self.option_add("*TCombobox.font", ("Helvetica", 17))
         self._build()
@@ -135,6 +137,16 @@ class App(BASE):
         self.amount_var = tk.StringVar()
         self._field(form, 6, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
+        
+        checkButton_secondCompta = tk.Checkbutton( text = "Inscrire la second comptabilité", 
+            variable = self.second_compta_var , 
+            onvalue = True, 
+            offvalue = False, 
+            height = 2, 
+            width = 30,
+            font= ("Helvetica", 15)
+            )
+        checkButton_secondCompta.pack(pady=(14, 0))
 
         # Separator
         sep = tk.Frame(outer, height=1, bg=BORDER)
@@ -196,8 +208,8 @@ class App(BASE):
             font=("Helvetica", 11, "bold"), relief="flat",
             padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
         )
-        btn.pack(pady=(14, 0))
-        btn_end.pack(pady=(14, 0))
+        btn.pack(pady=(15, 15),padx=(150, 50),side = tk.LEFT)
+        btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
 
 
@@ -281,10 +293,13 @@ class App(BASE):
 
         print(description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
-    
         add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
+        if DEBUG : 
+            print("second compta var on submit : "+ str(self.second_compta_var))
+            print("account receivable on submit : " +self.act_receivable_act.GetName())
+        if self.second_compta_var :
+            add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d)
         self.session.save()
-
         self._reset()
 
     def _reset(self):
