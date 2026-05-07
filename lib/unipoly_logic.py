@@ -4,9 +4,10 @@ from datetime import date
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 CONFIG_FILE = "config"
 
-DEBUG = 1
+DEBUG = 0
 with open(CONFIG_FILE) as f : 
-    BASE_DIR = f.readline()
+    BASE_DIR = os.path.expanduser(f.readline())
+    if BASE_DIR[-1] != '/' : BASE_DIR += '/'
 
 BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine
 BASE_GNUCASH_FOLDER = os.path.expanduser( BASE_DIR +"1 - Comptabilite/")
