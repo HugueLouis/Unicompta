@@ -10,6 +10,8 @@ from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 from decimal import Decimal
 from pathlib import Path
+from pdf2image import convert_from_path
+from PIL import ImageTk
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -83,8 +85,18 @@ class App(BASE):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build(self):
-        outer = tk.Frame(self, bg=WHITE, padx=28, pady=24)
-        outer.pack(fill="both", expand=True)
+
+        paned = tk.PanedWindow(self, orient=tk.HORIZONTAL, bg=WHITE, sashwidth=4)
+        paned.pack(fill="both", expand=True)
+
+        # Left: form
+        outer = tk.Frame(paned, bg=WHITE, padx=28, pady=24)
+        paned.add(outer, minsize=480)
+
+        # Right: PDF preview
+        right = tk.Frame(paned, bg=LIGHT, padx=8, pady=8)
+        paned.add(right, minsize=300)
+        self._build_preview_panel(right)
 
         # Title
         tk.Label(outer, text="Dépôt de fichier PDF", font=("Helvetica", 16, "bold"),
@@ -249,6 +261,7 @@ class App(BASE):
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
         self._refresh_preview()
+        self._load_pdf_preview(path)
 
     def _refresh_preview(self, *_):
         try:
@@ -325,6 +338,79 @@ class App(BASE):
         x = (self.winfo_screenwidth()  - w) // 2
         y = (self.winfo_screenheight() - h) // 2
         self.geometry(f"+{x}+{y}")
+
+    def _build_preview_panel(self, parent):
+        tk.Label(parent, text="Aperçu PDF", font=("Helvetica", 13, "bold"),
+                bg=LIGHT, fg=TEXT).pack(anchor="w", pady=(0, 6))
+
+        # Navigation row
+        nav = tk.Frame(parent, bg=LIGHT)
+        nav.pack(fill="x", pady=(0, 4))
+        self._prev_btn = tk.Button(nav, text="◀", command=self._prev_page,
+                                state="disabled", relief="flat", bg=LIGHT)
+        self._prev_btn.pack(side="left")
+        self._page_label = tk.Label(nav, text="", bg=LIGHT, font=("Helvetica", 11))
+        self._page_label.pack(side="left", padx=8)
+        self._next_btn = tk.Button(nav, text="▶", command=self._next_page,
+                                state="disabled", relief="flat", bg=LIGHT)
+        self._next_btn.pack(side="left")
+
+        # Canvas for the page image
+        self._pdf_canvas = tk.Canvas(parent, bg="#e2e8f0", highlightthickness=0)
+        self._pdf_canvas.pack(fill="both", expand=True)
+        self._pdf_canvas.bind("<Configure>", self._on_canvas_resize)
+
+        # Internal state
+        self._pdf_pages = []
+        self._pdf_page_idx = 0
+        self._pdf_tk_img = None
+
+    def _load_pdf_preview(self, path):
+        try:
+            # Render at a reasonable DPI; lower = faster
+            self._pdf_pages = convert_from_path(path, dpi=120)
+            self._pdf_page_idx = 0
+            self._show_current_page()
+        except Exception as e:
+            self._pdf_canvas.delete("all")
+            self._pdf_canvas.create_text(10, 10, anchor="nw",
+                text=f"Aperçu indisponible:\n{e}", fill=GRAY)
+
+    def _show_current_page(self):
+        if not self._pdf_pages:
+            return
+        idx = self._pdf_page_idx
+        total = len(self._pdf_pages)
+
+        self._page_label.config(text=f"Page {idx+1} / {total}")
+        self._prev_btn.config(state="normal" if idx > 0 else "disabled")
+        self._next_btn.config(state="normal" if idx < total-1 else "disabled")
+        self._render_page()
+
+    def _render_page(self):
+        if not self._pdf_pages:
+            return
+        canvas = self._pdf_canvas
+        cw = canvas.winfo_width() or 300
+        ch = canvas.winfo_height() or 400
+
+        img = self._pdf_pages[self._pdf_page_idx].copy()
+        img.thumbnail((cw, ch))   # fits inside canvas, keeps aspect ratio
+
+        self._pdf_tk_img = ImageTk.PhotoImage(img)
+        canvas.delete("all")
+        canvas.create_image(cw // 2, ch // 2, anchor="center", image=self._pdf_tk_img)
+
+    def _on_canvas_resize(self, _=None):
+        self._render_page()   # re-fit on window resize
+
+    def _prev_page(self):
+        self._pdf_page_idx -= 1
+        self._show_current_page()
+
+    def _next_page(self):
+        self._pdf_page_idx += 1
+        self._show_current_page()
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 

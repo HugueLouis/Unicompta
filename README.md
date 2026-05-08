@@ -4,6 +4,7 @@
 
 ```bash
 pip install tkinterdnd2
+pip install pdf2image Pillow
 sudo apt-get install python3-gnucash
 
 # Save your current packages first
