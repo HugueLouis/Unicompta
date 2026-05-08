@@ -205,7 +205,7 @@ class App(BASE):
         )
         # End button
         btn_end = tk.Button(
-            outer, text="  Fermer  ", command=self._close,
+            outer, text="  Fermer  ", command=lambda: exit(),
             bg=BLUE, fg=WHITE, activebackground="#D8811D", activeforeground=WHITE,
             font=("Helvetica", 11, "bold"), relief="flat",
             padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
@@ -315,6 +315,8 @@ class App(BASE):
     def _close(self): 
         self.session.save()
         self.session.end()
+        clean_gnucash_folder()
+        print("well done")
         exit()
 
     def _center(self):
@@ -331,5 +333,10 @@ if __name__ == "__main__":
         print("The config file should contain a valid path to the folder UPSecretrariat.") 
         exit()
     clean_gnucash_folder()
-    app = App()
-    app.mainloop()
+    try :
+        app = App()
+        app.mainloop()
+    finally :
+        # in any scenario we want to make sure that the folder is clean and the session is saved + ended
+        App._close(app)
+        
