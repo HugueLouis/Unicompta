@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import shutil
-from datetime import date
+from datetime import date,timedelta
 import tkinter as tk
 import gzip
 import magic
@@ -313,7 +313,8 @@ class App(BASE):
             print("second compta var on submit : "+ str(self.second_compta_var))
             print("account receivable on submit : " +self.act_receivable_act.GetName())
         if self.second_compta_var :
-            add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d)
+            add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
+            
         self.session.save()
         self._reset()
 
@@ -329,7 +330,6 @@ class App(BASE):
         self.session.save()
         self.session.end()
         clean_gnucash_folder()
-        print("well done")
         exit()
 
     def _center(self):

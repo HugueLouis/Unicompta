@@ -18,10 +18,6 @@ CHARGES_ACT_NAME    = "03-Charges"
 ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
 ACT_RECEIVABLE_ACT_NAME = "01-01-Account Receivables (AR)"
 
-#TODO Change the way it chooses the folder of "2 - DDR" "3 - FACT"
-#TODO make it register a line in gnucash in addition to saving the file to the right place
-#TODO older name wasn't "Pôles" but "Pôles d'activités"
-
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
 
 def folder_for_year_category(d: date, category: str) -> str :
