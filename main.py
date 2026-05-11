@@ -290,12 +290,19 @@ class App(BASE):
         folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
         description = filename[:-len(".pdf")] + " " + self.desc_var.get()
+        source = self.pdf_path.get()
         dest     = os.path.join(folder, filename)
 
+        # copy and rename to the right folder
         os.makedirs(folder, exist_ok=True)
-        shutil.copy2(self.pdf_path.get(), dest)
+        shutil.copy2(source, dest)
         messagebox.showinfo("Succès ", f"Fichier enregistré :\n\n{dest}")
-        
+
+        # Rename the original source file
+        source_dir = os.path.dirname(source)
+        new_source_path = os.path.join(source_dir, filename)
+        os.rename(source, new_source_path)
+
         # check if the file is compressed or not 
         type_of_gnucashfile = magic.from_file(GNUCASH_FILE)
         # if it is compressed the decompress it
