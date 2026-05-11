@@ -330,6 +330,7 @@ class App(BASE):
         self.desc_var.set("")
         self.drop.config(text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
                          fg=GRAY, bg=LIGHT)
+        self.amount_var.set("")
         self.date_var.set(date.today().isoformat())
         self._refresh_preview()
 
