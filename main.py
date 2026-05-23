@@ -5,6 +5,7 @@ from datetime import date,timedelta
 import tkinter as tk
 import gzip
 import magic
+import fitz
 from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
@@ -348,10 +349,16 @@ class App(BASE):
         self.geometry(f"+{x}+{y}")
 
     def _build_preview_panel(self, parent):
+
+        self._pdf_pages = []
+        self._pdf_doc = None
+        self._pdf_page_idx = 0
+        self._pdf_tk_img = None
+        self._view_mode = tk.StringVar(value="image")
+
         tk.Label(parent, text="Aperçu PDF", font=("Helvetica", 13, "bold"),
                 bg=LIGHT, fg=TEXT).pack(anchor="w", pady=(0, 6))
 
-        # Navigation row
         nav = tk.Frame(parent, bg=LIGHT)
         nav.pack(fill="x", pady=(0, 4))
         self._prev_btn = tk.Button(nav, text="◀", command=self._prev_page,
@@ -363,20 +370,67 @@ class App(BASE):
                                 state="disabled", relief="flat", bg=LIGHT)
         self._next_btn.pack(side="left")
 
-        # Canvas for the page image
-        self._pdf_canvas = tk.Canvas(parent, bg="#e2e8f0", highlightthickness=0)
-        self._pdf_canvas.pack(fill="both", expand=True)
+        # Toggle button between image and text view
+        self._view_mode = tk.StringVar(value="image")
+        toggle_frame = tk.Frame(parent, bg=LIGHT)
+        toggle_frame.pack(fill="x", pady=(0, 4))
+        tk.Radiobutton(toggle_frame, text="Image", variable=self._view_mode,
+                    value="image", bg=LIGHT, command=self._switch_view).pack(side="left")
+        tk.Radiobutton(toggle_frame, text="Texte (copiable)", variable=self._view_mode,
+                    value="text", bg=LIGHT, command=self._switch_view).pack(side="left", padx=8)
+
+        # Container holds both widgets; only one is visible at a time
+        self._preview_container = tk.Frame(parent, bg="#e2e8f0")
+        self._preview_container.pack(fill="both", expand=True)
+
+        # Image view
+        self._pdf_canvas = tk.Canvas(self._preview_container, bg="#e2e8f0", highlightthickness=0)
         self._pdf_canvas.bind("<Configure>", self._on_canvas_resize)
 
+        # Text view — selectable, copy-paste works natively
+        self._pdf_text = tk.Text(
+            self._preview_container,
+            wrap="word",
+            font=("Helvetica", 11),
+            relief="flat",
+            bg="#fafafa",
+            padx=12, pady=12,
+            state="disabled",   # read-only but still selectable
+        )
+        # Scrollbar for text view
+        self._text_scroll = tk.Scrollbar(self._preview_container, command=self._pdf_text.yview)
+        self._pdf_text.configure(yscrollcommand=self._text_scroll.set)
+
+        # Show image view by default
+        self._switch_view()
+
         # Internal state
-        self._pdf_pages = []
+        self._pdf_pages = []       # PIL images (for image view)
+        self._pdf_doc = None       # fitz.Document (for text view)
         self._pdf_page_idx = 0
         self._pdf_tk_img = None
+        self._pdf_tk_img = None
+
+    def _switch_view(self):
+        mode = self._view_mode.get()
+        self._pdf_canvas.pack_forget()
+        self._pdf_text.pack_forget()
+        self._text_scroll.pack_forget()
+
+        if mode == "image":
+            self._pdf_canvas.pack(fill="both", expand=True)
+            self._render_page()
+        else:
+            self._text_scroll.pack(side="right", fill="y")
+            self._pdf_text.pack(fill="both", expand=True)
+            self._render_page_text()
 
     def _load_pdf_preview(self, path):
         try:
-            # Render at a reasonable DPI; lower = faster
+            # Image rendering (existing)
             self._pdf_pages = convert_from_path(path, dpi=120)
+            # Text extraction (new)
+            self._pdf_doc = fitz.open(path)
             self._pdf_page_idx = 0
             self._show_current_page()
         except Exception as e:
@@ -384,30 +438,43 @@ class App(BASE):
             self._pdf_canvas.create_text(10, 10, anchor="nw",
                 text=f"Aperçu indisponible:\n{e}", fill=GRAY)
 
+
     def _show_current_page(self):
         if not self._pdf_pages:
             return
         idx = self._pdf_page_idx
         total = len(self._pdf_pages)
-
         self._page_label.config(text=f"Page {idx+1} / {total}")
         self._prev_btn.config(state="normal" if idx > 0 else "disabled")
         self._next_btn.config(state="normal" if idx < total-1 else "disabled")
         self._render_page()
+        if self._view_mode.get() == "text":
+            self._render_page_text()
 
     def _render_page(self):
-        if not self._pdf_pages:
+        if not self._pdf_pages:   # ← guard: nothing loaded yet
             return
         canvas = self._pdf_canvas
         cw = canvas.winfo_width() or 300
         ch = canvas.winfo_height() or 400
 
         img = self._pdf_pages[self._pdf_page_idx].copy()
-        img.thumbnail((cw, ch))   # fits inside canvas, keeps aspect ratio
-
+        img.thumbnail((cw, ch))
         self._pdf_tk_img = ImageTk.PhotoImage(img)
         canvas.delete("all")
         canvas.create_image(cw // 2, ch // 2, anchor="center", image=self._pdf_tk_img)
+
+
+    def _render_page_text(self):
+        if not self._pdf_doc:     # ← guard: nothing loaded yet
+            return
+        page = self._pdf_doc[self._pdf_page_idx]
+        text = page.get_text("text")
+
+        self._pdf_text.configure(state="normal")
+        self._pdf_text.delete("1.0", "end")
+        self._pdf_text.insert("1.0", text)
+        self._pdf_text.configure(state="disabled")
 
     def _on_canvas_resize(self, _=None):
         self._render_page()   # re-fit on window resize
