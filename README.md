@@ -7,6 +7,9 @@ pip install tkinterdnd2
 pip install pdf2image Pillow
 pip install pymupdf
 sudo apt-get install python3-gnucash
+curl -fsSL https://ollama.com/install.sh | sh
+pip install ollama
+ollama pull gemma3:4b
 
 # Save your current packages first
 
