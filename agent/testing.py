@@ -1,9 +1,9 @@
 import ollama, json, re, time
-from examples import *
+from agent.examples import *
 
 
-PROMPT = """This form has two sections: first all the labels listed top to bottom, then all the values listed top to bottom in the same order.
-Return JSON only, no explanation:
+PROMPT = """This form has two sections: the labels, then the values in the same order.
+Return JSON only for only these fields, no explanation:
 {"prenom_nom": ..., "date_demande": ..., "pole_activite": ..., "motif": ..., "montant_chf": ...}
 """
 
