@@ -32,7 +32,10 @@ def find_account_including(root, substring, children = False):
     if not children : raise Exception(f"oh ohh a tech bro stole your {substring} account")
     else : return None
 
-def add_transaction(book, from_account, to_account, amount_decimal, description, date=None):
+def add_transaction(book, from_account, to_account, amount_decimal, description, date=None) -> Transaction :
+    """
+    Adds a transaction to the book, do not forget to save the gnucash :)
+    """
     if date is None:
         date = datetime.date.today()
 
@@ -63,5 +66,13 @@ def add_transaction(book, from_account, to_account, amount_decimal, description,
     split_from.SetAccount(from_account)
     split_from.SetValue(to_gnc(-amount_decimal))
     split_from.SetAmount(to_gnc(-amount_decimal))
-
     tx.CommitEdit()
+    return tx
+
+
+def delete_transaction(tx=None):
+    """
+    Delete a transaction from the book.
+    """
+    tx.BeginEdit()
+    tx.Destroy()

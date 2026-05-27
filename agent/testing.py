@@ -1,5 +1,5 @@
 import ollama, json, re, time
-from agent.examples import *
+from examples import *
 
 
 PROMPT = """This form has two sections: the labels, then the values in the same order.
