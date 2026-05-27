@@ -318,9 +318,9 @@ class App(BASE):
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
         if DEBUG : 
-            print("second compta var on submit : "+ str(self.second_compta_var))
+            print("second compta var on submit : "+ str(self.second_compta_var.get()))
             print("account receivable on submit : " +self.act_receivable_act.GetName())
-        if self.second_compta_var :
+        if self.second_compta_var.get() :
             add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
             
         self.session.save()
