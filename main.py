@@ -61,7 +61,9 @@ class App(BASE):
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
         self.option_add("*TCombobox.font", ("Helvetica", 17))
         self._build()
-        self._center()
+        self.update_idletasks()
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.geometry(f"+{(sw - self.winfo_width()) // 2}+{(sh - self.winfo_height()) // 2}")
 
     def _on_cat_change(self, *_):
         try:
@@ -72,7 +74,6 @@ class App(BASE):
         poles = get_poles(d, self.cat_var.get())
         self.pole_combo["values"] = poles
         self.pole_var.set(poles[0] if poles else "")
-        self._on_pole_change
 
     def _on_pole_change(self,*_):
         # update pole_charge_types scrolling
@@ -81,7 +82,11 @@ class App(BASE):
         pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
         self.pole_charge_type_var_combo["values"] = pole_charge_types_str
         self.pole_charge_type_var_str.set(pole_charge_types_str[0] if pole_charge_types_str else "")
-        self._refresh_preview()
+
+    def _btn(self, parent, text, cmd, bg=BLUE, fg=WHITE, **kw):
+        return tk.Button(parent, text=text, command=cmd,
+            bg=bg, fg=fg, font=("Helvetica", 11, "bold"),
+            relief="flat", padx=14, pady=8, cursor="hand2", bd=0, **kw)
 
     # ── Layout ────────────────────────────────────────────────────────────────
 
@@ -163,29 +168,8 @@ class App(BASE):
             )
         self._field(form,7,"Inscrire la second comptabilité",self.checkButton_secondCompta)
 
-        # Separator
-        sep = tk.Frame(outer, height=1, bg=BORDER)
-        sep.pack(fill="x", pady=16)
-
-        # Drop zone
         self.drop = tk.Label(
             outer,
-            text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
-            font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
-            relief="flat", bd=0, cursor="hand2",
-            width=70, height=6,
-        )
-        self.drop.pack(pady=(0, 6))
-        self.drop.bind("<Button-1>", self._pick)
-        self.drop.bind("<Enter>", lambda e: self.drop.config(bg="#DBEAFE"))
-        self.drop.bind("<Leave>", lambda e: self.drop.config(bg=LIGHT))
-
-        # Draw dashed border manually via a surrounding frame
-        border_frame = tk.Frame(outer, bg=BORDER, padx=1, pady=1)
-        self.drop.pack_forget()
-        border_frame.pack(pady=(0, 6))
-        self.drop = tk.Label(
-            border_frame,
             text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
             cursor="hand2", padx=20, pady=16, width=80, height=5,
@@ -205,28 +189,18 @@ class App(BASE):
                                     font=("Helvetica", 18), fg=TEXT, bg=WHITE)
         self.preview_lbl.pack(anchor="w")
 
-        for v in (self.date_var, self.cat_var, self.pole_var, self.type_var):
+        for v in (self.pole_var, self.type_var):
             v.trace_add("write", self._refresh_preview)
         self._refresh_preview()
 
         # Submit button
-        btn = tk.Button(
-            outer, text="  Déposer  ", command=self._submit,
-            bg=BLUE, fg=WHITE, activebackground="#1D4ED8", activeforeground=WHITE,
-            font=("Helvetica", 11, "bold"), relief="flat",
-            padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
-        )
-        # End button
-        btn_end = tk.Button(
-            outer, text="  Fermer  ", command=lambda: exit(),
-            bg=BLUE, fg=WHITE, activebackground="#D8811D", activeforeground=WHITE,
-            font=("Helvetica", 11, "bold"), relief="flat",
-            padx=14, pady=8, cursor="hand2", bd=0, width=20, height=5
-        )
+        btn = self._btn(outer, "  Déposer  ", self._submit, width=20, height=5)
         btn.pack(pady=(15, 15),padx=(150, 50),side = tk.LEFT)
+        
+        # End button
+        btn_end = self._btn(outer, "  Fermer  ", self._close, activebackground="#D8811D", width=20, height=5)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
-
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -304,10 +278,8 @@ class App(BASE):
         new_source_path = os.path.join(source_dir, filename)
         os.rename(source, new_source_path)
 
-        # check if the file is compressed or not 
-        type_of_gnucashfile = magic.from_file(GNUCASH_FILE)
-        # if it is compressed the decompress it
-        if "gzip" in type_of_gnucashfile : 
+        # check if the file is compressed or not if it is compressed the decompress it
+        if "gzip" in  magic.from_file(GNUCASH_FILE) : 
             # decompress
             with gzip.open(GNUCASH_FILE, "rb") as f_in:
                 with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
@@ -322,7 +294,6 @@ class App(BASE):
             print("account receivable on submit : " +self.act_receivable_act.GetName())
         if self.second_compta_var.get() :
             add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
-            
         self.session.save()
         self._reset()
 
@@ -333,7 +304,6 @@ class App(BASE):
                          fg=GRAY, bg=LIGHT)
         self.amount_var.set("")
         self.date_var.set(date.today().isoformat())
-        self._refresh_preview()
 
     def _close(self): 
         self.session.save()
@@ -341,17 +311,10 @@ class App(BASE):
         clean_gnucash_folder()
         exit()
 
-    def _center(self):
-        self.update_idletasks()
-        w, h = self.winfo_width(), self.winfo_height()
-        x = (self.winfo_screenwidth()  - w) // 2
-        y = (self.winfo_screenheight() - h) // 2
-        self.geometry(f"+{x}+{y}")
-
     def _build_preview_panel(self, parent):
-
-        self._pdf_pages = []
-        self._pdf_doc = None
+        # Internal state
+        self._pdf_pages = []       # PIL images (for image view)
+        self._pdf_doc = None       # fitz.Document (for text view)
         self._pdf_page_idx = 0
         self._pdf_tk_img = None
         self._view_mode = tk.StringVar(value="image")
@@ -361,17 +324,14 @@ class App(BASE):
 
         nav = tk.Frame(parent, bg=LIGHT)
         nav.pack(fill="x", pady=(0, 4))
-        self._prev_btn = tk.Button(nav, text="◀", command=self._prev_page,
-                                state="disabled", relief="flat", bg=LIGHT)
+        self._prev_btn = self._btn(nav, "◀", lambda: self._turn_page(-1), bg=LIGHT, fg=TEXT, state="disabled")
+        self._next_btn = self._btn(nav, "▶", lambda: self._turn_page(1),  bg=LIGHT, fg=TEXT, state="disabled")
         self._prev_btn.pack(side="left")
+        self._next_btn.pack(side="left")
         self._page_label = tk.Label(nav, text="", bg=LIGHT, font=("Helvetica", 11))
         self._page_label.pack(side="left", padx=8)
-        self._next_btn = tk.Button(nav, text="▶", command=self._next_page,
-                                state="disabled", relief="flat", bg=LIGHT)
-        self._next_btn.pack(side="left")
 
         # Toggle button between image and text view
-        self._view_mode = tk.StringVar(value="image")
         toggle_frame = tk.Frame(parent, bg=LIGHT)
         toggle_frame.pack(fill="x", pady=(0, 4))
         tk.Radiobutton(toggle_frame, text="Image", variable=self._view_mode,
@@ -385,7 +345,7 @@ class App(BASE):
 
         # Image view
         self._pdf_canvas = tk.Canvas(self._preview_container, bg="#e2e8f0", highlightthickness=0)
-        self._pdf_canvas.bind("<Configure>", self._on_canvas_resize)
+        self._pdf_canvas.bind("<Configure>", self._render_page)
 
         # Text view — selectable, copy-paste works natively
         self._pdf_text = tk.Text(
@@ -404,23 +364,15 @@ class App(BASE):
         # Show image view by default
         self._switch_view()
 
-        # Internal state
-        self._pdf_pages = []       # PIL images (for image view)
-        self._pdf_doc = None       # fitz.Document (for text view)
-        self._pdf_page_idx = 0
-        self._pdf_tk_img = None
-        self._pdf_tk_img = None
-
     def _switch_view(self):
         mode = self._view_mode.get()
-        self._pdf_canvas.pack_forget()
-        self._pdf_text.pack_forget()
-        self._text_scroll.pack_forget()
-
         if mode == "image":
+            self._pdf_text.pack_forget()
+            self._text_scroll.pack_forget()
             self._pdf_canvas.pack(fill="both", expand=True)
             self._render_page()
         else:
+            self._pdf_canvas.pack_forget()
             self._text_scroll.pack(side="right", fill="y")
             self._pdf_text.pack(fill="both", expand=True)
             self._render_page_text()
@@ -451,7 +403,7 @@ class App(BASE):
         if self._view_mode.get() == "text":
             self._render_page_text()
 
-    def _render_page(self):
+    def _render_page(self, event=None):
         if not self._pdf_pages:   # ← guard: nothing loaded yet
             return
         canvas = self._pdf_canvas
@@ -476,15 +428,8 @@ class App(BASE):
         self._pdf_text.insert("1.0", text)
         self._pdf_text.configure(state="disabled")
 
-    def _on_canvas_resize(self, _=None):
-        self._render_page()   # re-fit on window resize
-
-    def _prev_page(self):
-        self._pdf_page_idx -= 1
-        self._show_current_page()
-
-    def _next_page(self):
-        self._pdf_page_idx += 1
+    def _turn_page(self, delta):
+        self._pdf_page_idx += delta
         self._show_current_page()
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
@@ -499,5 +444,5 @@ if __name__ == "__main__":
         app.mainloop()
     finally :
         # in any scenario we want to make sure that the folder is clean and the session is saved + ended
-        App._close(app)
+        app._close()
         
