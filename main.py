@@ -100,15 +100,16 @@ class App(BASE):
         # update poles scrolling
         poles = get_poles(d, self.cat_var.get())
         self.pole_combo["values"] = poles
-        self.pole_var.set(poles[0] if poles else "")
+        self.pole_var.set("")
 
     def _on_pole_change(self,*_):
         # update pole_charge_types scrolling
         if DEBUG: print( f"from {self.charges_act.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
-        self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
-        pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
-        self.pole_charge_type_var_combo["values"] = pole_charge_types_str
-        self.pole_charge_type_var_str.set(pole_charge_types_str[0] if pole_charge_types_str else "")
+        if not self.pole_var.get() == "":
+            self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
+            pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
+            self.pole_charge_type_var_combo["values"] = pole_charge_types_str
+        self.pole_charge_type_var_str.set("") 
 
     def _btn(self, parent, text, cmd, bg=BLUE, fg=WHITE, **kw):
         return tk.Button(parent, text=text, command=cmd,
@@ -304,7 +305,14 @@ class App(BASE):
             self.desc_var.set(self.supposed_answers[2])
             self.amount_var.set(self.supposed_answers[3])
 
-
+    def _extract_all_text(self) -> str:
+        """Return concatenated text from every page of the loaded PDF."""
+        if not self._pdf_doc:
+            return ""
+        return "\n".join(
+            self._pdf_doc[i].get_text("text")
+            for i in range(len(self._pdf_doc))
+        )
 
     def _refresh_preview(self, *_):
         try:
@@ -554,15 +562,6 @@ class App(BASE):
         name = self.pdf_listbox.get(idx[0])
         path = os.path.join(self.pdf_default_folder_var.get(), name)
         self._set_file(path)
-
-    def _extract_all_text(self) -> str:
-        """Return concatenated text from every page of the loaded PDF."""
-        if not self._pdf_doc:
-            return ""
-        return "\n".join(
-            self._pdf_doc[i].get_text("text")
-            for i in range(len(self._pdf_doc))
-        )
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────

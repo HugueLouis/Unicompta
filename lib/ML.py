@@ -1,8 +1,8 @@
 import ollama, json, re, time
 
-PROMPT = """This form has two sections: the labels, then the values in the same order. Date is in xx-xx-xxxx format 
-Return JSON only for only these fields, no explanation:
-{"name": ..., "date": ..., "description": ..., "amount": ...}
+PROMPT = """same order
+Return JSON for these fields, no explanation:
+{"name", "date", "description", "amount"}
 """
 COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires.<3",
         "*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires. <3",
@@ -18,7 +18,6 @@ ML_NONE = (None, None, None, None)
 def remove_substrings(main_string, substrings = COMMON):
     for sub in substrings:
         main_string = main_string.replace(sub, "")
-    print(main_string)
     return main_string
 
 def extract(text=None):
@@ -39,7 +38,7 @@ def filtered_extract(text=None):
         return ML_NONE
     return (
         data.get("name"),
-        data.get("date"),
+        "-".join(reversed(data.get("date").replace("/","-").replace(".","-").split("-"))),
         data.get("description"),
         data.get("amount"),
     )
