@@ -76,3 +76,4 @@ def delete_transaction(tx=None):
     """
     tx.BeginEdit()
     tx.Destroy()
+    tx.CommitEdit()

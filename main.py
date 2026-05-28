@@ -53,6 +53,7 @@ class App(BASE):
         self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
         self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
         self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
+        self.transactions = []
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
@@ -201,6 +202,7 @@ class App(BASE):
         btn_end = self._btn(outer, "  Fermer  ", self._close, activebackground="#D8811D", width=20, height=5)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
+        self._build_transaction_panel(paned)
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -288,12 +290,16 @@ class App(BASE):
 
         print(description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
-        add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
+        tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
+        self.transactions.append((description, tx))
+        self.tx_listbox.insert("end", description)
         if DEBUG : 
             print("second compta var on submit : "+ str(self.second_compta_var.get()))
             print("account receivable on submit : " +self.act_receivable_act.GetName())
         if self.second_compta_var.get() :
-            add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
+            tx = add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
+            self.transactions.append(("n*2 " +description, tx))
+            self.tx_listbox.insert("end", "n*2 " +description)
         self.session.save()
         self._reset()
 
@@ -431,6 +437,33 @@ class App(BASE):
     def _turn_page(self, delta):
         self._pdf_page_idx += delta
         self._show_current_page()
+
+    def _build_transaction_panel(self, paned):
+        frame = tk.Frame(paned, bg=WHITE, padx=12, pady=12)
+        paned.add(frame, minsize=250)
+
+        tk.Label(frame, text="Transactions", font=("Helvetica", 13, "bold"),
+                bg=WHITE, fg=TEXT).pack(anchor="w", pady=(0, 6))
+
+        self.tx_listbox = tk.Listbox(frame, font=("Helvetica", 11), relief="solid",
+                                    bd=1, selectmode="single", width=35)
+        self.tx_listbox.pack(fill="both", expand=True)
+        self._btn(frame, "🗑 Supprimer", self._delete_selected,
+                bg="#DC2626").pack(fill="x", pady=(8, 0))
+
+    def _delete_selected(self):
+        idx = self.tx_listbox.curselection()
+        if not idx:
+            messagebox.showwarning("Attention", "Sélectionnez une transaction.")
+            return
+        i = idx[0]
+        desc, tx = self.transactions[i]
+        if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
+            delete_transaction(tx=tx)
+            print("Deleted "+ desc)
+            self.session.save()
+            self.transactions.pop(i)
+            self.tx_listbox.delete(i)
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
