@@ -1,15 +1,15 @@
 import ollama, json, re, time
-from examples import *
 
 PROMPT = """This form has two sections: the labels, then the values in the same order. Date is in xx-xx-xxxx format 
 Return JSON only for only these fields, no explanation:
 {"name": ..., "date": ..., "description": ..., "amount": ...}
 """
-COMMON=["Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires.<3",
+COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires.<3",
+        "*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires. <3",
         "NPA, Localité * :",
         "IBAN * :",
         "Signature :", "Pôle d′activité :","Date de la demande :", "Prénom NOM :","Motif :",
-        "Montant(CHF) :"]
+        "Montant(CHF) :","Demande de Remboursement"]
 
 TEXT_MODEL = "gemma3:1b"
 ML_NONE = (None, None, None, None)
@@ -18,7 +18,7 @@ ML_NONE = (None, None, None, None)
 def remove_substrings(main_string, substrings = COMMON):
     for sub in substrings:
         main_string = main_string.replace(sub, "")
-    print("main string :" + main_string)
+    print(main_string)
     return main_string
 
 def extract(text=None):
@@ -33,9 +33,6 @@ def filtered_extract(text=None):
     """
     f_text = remove_substrings(text)
     raw = extract(f_text)
-    print("--------------")
-    print("RAW : " + raw)
-    print("--------------")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
@@ -46,14 +43,3 @@ def filtered_extract(text=None):
         data.get("description"),
         data.get("amount"),
     )
-
-# ── Examples ──────────────────────────────────────────────────────────────────
-
-start_time = time.time()
-for ex in EXAMPLES:
-    print()
-    print(ex)
-    print(filtered_extract(text=ex))
-delta = time.time() - start_time
-print("--- %s seconds ---" % (delta))
-print(f"for {len(EXAMPLES)} examples, so {delta/len(EXAMPLES)} on average")

@@ -9,6 +9,8 @@ import fitz
 from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
+from lib.ML import *
+
 from decimal import Decimal
 from pathlib import Path
 from pdf2image import convert_from_path
@@ -77,6 +79,7 @@ class App(BASE):
         self.transactions = []
         self.pdf_folder = tk.StringVar(value=get_default_pdf_folder())
         self.pdf_default_folder_var = tk.StringVar(value=get_default_pdf_folder())
+        self.supposed_answers = ML_NONE
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
@@ -290,6 +293,18 @@ class App(BASE):
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
         self._refresh_preview()
         self._load_pdf_preview(path)
+        self._suppose()
+
+    def _suppose(self):
+        full_text = self._extract_all_text()  # grab text from all pages
+        self.supposed_answers = filtered_extract(full_text)
+        if not (self.supposed_answers==ML_NONE):
+            self.name_var.set(self.supposed_answers[0])
+            self.date_var.set(self.supposed_answers[1])
+            self.desc_var.set(self.supposed_answers[2])
+            self.amount_var.set(self.supposed_answers[3])
+
+
 
     def _refresh_preview(self, *_):
         try:
@@ -539,6 +554,15 @@ class App(BASE):
         name = self.pdf_listbox.get(idx[0])
         path = os.path.join(self.pdf_default_folder_var.get(), name)
         self._set_file(path)
+
+    def _extract_all_text(self) -> str:
+        """Return concatenated text from every page of the loaded PDF."""
+        if not self._pdf_doc:
+            return ""
+        return "\n".join(
+            self._pdf_doc[i].get_text("text")
+            for i in range(len(self._pdf_doc))
+        )
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
