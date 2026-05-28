@@ -147,11 +147,12 @@ class App(BASE):
         self.pdf_listbox.bind("<<ListboxSelect>>", self._on_pdf_select)
         self._refresh_pdf_list()
 
+        # --- Drag and drop zone
         self.drop = tk.Label(
             outer,
             text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
-            cursor="hand2", padx=20, pady=16, width=80, height=5,
+            cursor="hand2", padx=20, pady=10, width=80, height=2,
         )
         self.drop.pack()
         self.drop.bind("<Button-1>", self._pick)
@@ -197,21 +198,26 @@ class App(BASE):
         self._field(form, 3, "Type of charge of pole", self.pole_charge_type_var_combo)
         # Update the type of charge type when date or category changes
         self.pole_var.trace_add("write", self._on_pole_change)
-        
+                
+        # Name
+        self.name_var = tk.StringVar()
+        self._field(form, 4, "Nom", tk.Entry(
+            form, textvariable=self.name_var, **self._entry_kw(width=40)))
+
         # Description
         self.desc_var = tk.StringVar()
-        self._field(form, 4, "Name + Description", tk.Entry(
+        self._field(form, 5, "Description", tk.Entry(
             form, textvariable=self.desc_var, **self._entry_kw(width=40)))
 
         # Type of charge
         self.type_var = tk.StringVar(value="REMB")
-        self._field(form, 5, "Charge", ttk.Combobox(
+        self._field(form, 6, "Charge", ttk.Combobox(
             form, textvariable=self.type_var,
             values=["REMB", "FACT"], state="readonly", width=10))
 
         # Amount
         self.amount_var = tk.StringVar()
-        self._field(form, 6, "Montant (chf)", tk.Entry(
+        self._field(form, 7, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
         
         # Second inscription compta
@@ -224,7 +230,7 @@ class App(BASE):
             width = 5,
             font= ("Helvetica", 15, "bold")
             )
-        self._field(form,7,"Inscrire la second comptabilité",self.checkButton_secondCompta)
+        self._field(form,8,"Inscrire la second comptabilité",self.checkButton_secondCompta)
 
         # Filename preview
         self.preview_var = tk.StringVar(value="")
@@ -311,7 +317,7 @@ class App(BASE):
         amount = Decimal(str(self.amount_var.get()))
         folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
-        description = filename[:-len(".pdf")] + " " + self.desc_var.get()
+        description = filename[:-len(".pdf")] + " " + self.name_var.get() + " " + self.desc_var.get()
         source = self.pdf_path.get()
         dest     = os.path.join(folder, filename)
 
@@ -350,6 +356,7 @@ class App(BASE):
 
     def _reset(self):
         self.pdf_path.set("")
+        self.name_var.set("")
         self.desc_var.set("")
         self.drop.config(text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
                          fg=GRAY, bg=LIGHT)
