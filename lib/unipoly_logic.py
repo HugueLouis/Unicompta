@@ -6,7 +6,7 @@ CONFIG_FILE = "config"
 
 DEBUG = 0
 with open(CONFIG_FILE) as f : 
-    BASE_DIR = os.path.expanduser(f.readline())
+    BASE_DIR = os.path.expanduser(f.readline().strip())
     if BASE_DIR[-1] != '/' : BASE_DIR += '/'
 
 BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine

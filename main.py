@@ -33,6 +33,27 @@ GRAY   = "#64748B"
 WHITE  = "#FFFFFF"
 GREEN  = "#16A34A"
 
+def get_default_pdf_folder():
+    with open(CONFIG_FILE) as f :
+        lines = f.readlines()
+    if len(lines)>=2 :
+        folder = os.path.expanduser(lines[1].strip())
+    else :
+        folder = "."
+    if folder[-1] != '/' : folder += '/'
+    return folder
+
+def set_default_pdf_folder(folder: str):
+    folder = os.path.expanduser(folder)
+    with open(CONFIG_FILE, "r") as f:
+        lines = f.readlines()
+    while len(lines) < 2:
+        lines.append("\n")
+    lines[0] = BASE_DIR + "\n"
+    lines[1] = folder + "\n"
+    with open(CONFIG_FILE, "w") as f:
+        f.writelines(lines)
+
 def clean_gnucash_folder():
     """ Delete all the files that aren't the gnucash file
     This is to get rid of all the locks"""
@@ -54,6 +75,8 @@ class App(BASE):
         self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
         self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
         self.transactions = []
+        self.pdf_folder = tk.StringVar(value=get_default_pdf_folder())
+        self.pdf_default_folder_var = tk.StringVar(value=get_default_pdf_folder())
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
@@ -104,6 +127,40 @@ class App(BASE):
         right = tk.Frame(paned, bg=LIGHT, padx=8, pady=8)
         paned.add(right, minsize=300)
         self._build_preview_panel(right)
+
+        # -- Folder picker row --
+        folder_row = tk.Frame(outer, bg=WHITE)
+        folder_row.pack(fill="x", pady=(0, 10))
+
+        tk.Label(folder_row, text="Dossier PDF :", font=("Helvetica", 13),
+                bg=WHITE, fg=TEXT).pack(side="left")
+        tk.Label(folder_row, textvariable=self.pdf_default_folder_var,
+                font=("Helvetica", 11), fg=GRAY, bg=WHITE).pack(side="left", padx=8)
+        self._btn(folder_row, "Choisir…", self._pick_folder).pack(side="left")
+
+        # -- PDF list --
+        tk.Label(outer, text="Fichiers PDF", font=("Helvetica", 13, "bold"),
+                bg=WHITE, fg=TEXT).pack(anchor="w")
+        self.pdf_listbox = tk.Listbox(outer, font=("Helvetica", 12), relief="solid",
+                                    bd=1, height=6, selectmode="single")
+        self.pdf_listbox.pack(fill="x", pady=(0, 10))
+        self.pdf_listbox.bind("<<ListboxSelect>>", self._on_pdf_select)
+        self._refresh_pdf_list()
+
+        self.drop = tk.Label(
+            outer,
+            text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
+            font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
+            cursor="hand2", padx=20, pady=16, width=80, height=5,
+        )
+        self.drop.pack()
+        self.drop.bind("<Button-1>", self._pick)
+        self.drop.bind("<Enter>", lambda e: self.drop.config(bg="#DBEAFE"))
+        self.drop.bind("<Leave>", lambda e: self.drop.config(bg=LIGHT))
+
+        if DND_FILES:
+            self.drop.drop_target_register(DND_FILES)
+            self.drop.dnd_bind("<<Drop>>", self._on_drop)
 
         # Title
         tk.Label(outer, text="Dépôt de fichier PDF", font=("Helvetica", 16, "bold"),
@@ -169,21 +226,6 @@ class App(BASE):
             )
         self._field(form,7,"Inscrire la second comptabilité",self.checkButton_secondCompta)
 
-        self.drop = tk.Label(
-            outer,
-            text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
-            font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
-            cursor="hand2", padx=20, pady=16, width=80, height=5,
-        )
-        self.drop.pack()
-        self.drop.bind("<Button-1>", self._pick)
-        self.drop.bind("<Enter>", lambda e: self.drop.config(bg="#DBEAFE"))
-        self.drop.bind("<Leave>", lambda e: self.drop.config(bg=LIGHT))
-
-        if DND_FILES:
-            self.drop.drop_target_register(DND_FILES)
-            self.drop.dnd_bind("<<Drop>>", self._on_drop)
-
         # Filename preview
         self.preview_var = tk.StringVar(value="")
         self.preview_lbl = tk.Label(outer, textvariable=self.preview_var,
@@ -221,7 +263,10 @@ class App(BASE):
     # ── Events ────────────────────────────────────────────────────────────────
 
     def _pick(self, _=None):
-        path = filedialog.askopenfilename(filetypes=[("PDF", "*.pdf")])
+        path = filedialog.askopenfilename(
+            initialdir=self.pdf_default_folder_var.get(),   # ← add this
+            filetypes=[("PDF", "*.pdf")]
+        )
         if path:
             self._set_file(path)
 
@@ -464,6 +509,30 @@ class App(BASE):
             self.session.save()
             self.transactions.pop(i)
             self.tx_listbox.delete(i)
+
+    def _pick_folder(self):
+        folder = filedialog.askdirectory(initialdir=self.pdf_default_folder_var.get())
+        if folder:
+            self.pdf_default_folder_var.set(folder)
+            set_default_pdf_folder(folder)
+            self._refresh_pdf_list()
+
+    def _refresh_pdf_list(self):
+        self.pdf_listbox.delete(0, "end")
+        folder = self.pdf_default_folder_var.get()
+        if os.path.isdir(folder):
+            pdfs = sorted(Path(folder).glob("*.pdf"))
+            for p in pdfs:
+                self.pdf_listbox.insert("end", p.name)
+
+    def _on_pdf_select(self, _=None):
+        idx = self.pdf_listbox.curselection()
+        if not idx:
+            return
+        name = self.pdf_listbox.get(idx[0])
+        path = os.path.join(self.pdf_default_folder_var.get(), name)
+        self._set_file(path)
+
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
