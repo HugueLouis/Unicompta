@@ -36,9 +36,12 @@ def filtered_extract(text=None):
         data = json.loads(raw)
     except json.JSONDecodeError:
         return ML_NONE
+    date_split = data.get("date").replace("/","-").replace(".","-").split("-")
+    if len(date_split[0])!=4 :
+        date_split = reversed(date_split) 
     return (
         data.get("name"),
-        "-".join(reversed(data.get("date").replace("/","-").replace(".","-").split("-"))),
+        "-".join(date_split),
         data.get("description"),
         data.get("amount"),
     )
