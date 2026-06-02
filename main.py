@@ -143,19 +143,30 @@ class App(BASE):
                 font=("Helvetica", 11), fg=GRAY, bg=WHITE).pack(side="left", padx=8)
         self._btn(folder_row, "Choisir…", self._pick_folder).pack(side="left")
 
+
+
         # -- PDF list --
-        tk.Label(outer, text="Fichiers PDF", font=("Helvetica", 13, "bold"),
-                bg=WHITE, fg=TEXT).pack(anchor="w")
-        self.pdf_listbox = tk.Listbox(outer, font=("Helvetica", 12), relief="solid",
+        pdfs_headers = tk.Frame(outer, bg=WHITE)
+        pdfs_headers.pack(fill="x")
+        tk.Label(pdfs_headers, text="Fichiers PDF", font=("Helvetica", 13, "bold"),
+                bg=WHITE, fg=TEXT).pack(anchor="w", side = 'left')
+        
+        # -- Refresh button --
+        self._btn(pdfs_headers, "🗘", self._refresh_pdf_list).pack(side="right")
+        
+        pdfs = tk.Frame(outer, bg=WHITE)
+        pdfs.pack(fill="x")
+        self.pdf_listbox = tk.Listbox(pdfs, font=("Helvetica", 12), relief="solid",
                                     bd=1, height=6, selectmode="single")
         self.pdf_listbox.pack(fill="x", pady=(0, 10))
         self.pdf_listbox.bind("<<ListboxSelect>>", self._on_pdf_select)
         self._refresh_pdf_list()
 
+
         # --- Drag and drop zone
         self.drop = tk.Label(
             outer,
-            text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
+            text="📄  drag and drop PDF here\n\n Or click to browse",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
             cursor="hand2", padx=20, pady=10, width=80, height=2,
         )
