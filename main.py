@@ -24,6 +24,7 @@ except ImportError:
     DND_FILES = None
 
 DEFAULT_SECOND_COMPTA = True
+PREFIX_DESC_SECOND_COMPTA = "n*2 "
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -362,18 +363,20 @@ class App(BASE):
                     shutil.copyfileobj(f_in, f_out)
                     os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
 
-        print(description)
+        print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
-        self.transactions.append((description, tx))
+        self.transactions.append((description, tx, dest))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
             print("second compta var on submit : "+ str(self.second_compta_var.get()))
             print("account receivable on submit : " +self.act_receivable_act.GetName())
         if self.second_compta_var.get() :
-            tx = add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
-            self.transactions.append(("n*2 " +description, tx))
-            self.tx_listbox.insert("end", "n*2 " +description)
+            tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
+            print("Inserted "+ tx_2_desc)
+            tx_2 = add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
+            self.transactions.append((tx_2_desc, tx_2, None)) # Don't add filename because the file is already set on the first
+            self.tx_listbox.insert("end", tx_2_desc)
         self.session.save()
         self._reset()
 
@@ -527,18 +530,25 @@ class App(BASE):
                 bg="#DC2626").pack(fill="x", pady=(8, 0))
 
     def _delete_selected(self):
+        def delete_tx_i(i):
+            desc, tx, filepath = self.transactions[i]
+            if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
+                delete_transaction(tx=tx)
+                if filepath : 
+                    os.remove(filepath)
+                    next_desc, _, _ = self.transactions[i+1]
+                    if desc in next_desc : #if the next transaction is the next compta
+                        delete_tx_i(i+1)
+                print("Deleted "+ desc)
+                self.session.save()
+                self.transactions.pop(i)
+                self.tx_listbox.delete(i)
         idx = self.tx_listbox.curselection()
         if not idx:
             messagebox.showwarning("Attention", "Sélectionnez une transaction.")
             return
         i = idx[0]
-        desc, tx = self.transactions[i]
-        if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
-            delete_transaction(tx=tx)
-            print("Deleted "+ desc)
-            self.session.save()
-            self.transactions.pop(i)
-            self.tx_listbox.delete(i)
+        delete_tx_i(i)
 
     def _pick_folder(self):
         folder = filedialog.askdirectory(initialdir=self.pdf_default_folder_var.get())
