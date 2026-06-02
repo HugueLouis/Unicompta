@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
-import shutil
+from concurrent.futures import ThreadPoolExecutor
+import threading
 from datetime import date,timedelta
 import tkinter as tk
-import gzip
-import magic
-import fitz
+import gzip , shutil, magic, fitz
 from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 from lib.ML import *
-
 from decimal import Decimal
 from pathlib import Path
 from pdf2image import convert_from_path
@@ -35,6 +33,9 @@ TEXT   = "#1E293B"
 GRAY   = "#64748B"
 WHITE  = "#FFFFFF"
 GREEN  = "#16A34A"
+
+def dprint(str):
+    if DEBUG : print(str)
 
 def get_default_pdf_folder():
     with open(CONFIG_FILE) as f :
@@ -72,6 +73,7 @@ class App(BASE):
     def __init__(self):
         super().__init__()
         self.session = gnucash.Session("xml://"+ GNUCASH_FILE)
+        self.executor = ThreadPoolExecutor(max_workers=1)
         self.book = self.session.book
         self.root_act = self.book.get_root_account()
         self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
@@ -80,10 +82,10 @@ class App(BASE):
         self.transactions = []
         self.pdf_folder = tk.StringVar(value=get_default_pdf_folder())
         self.pdf_default_folder_var = tk.StringVar(value=get_default_pdf_folder())
-        self.supposed_answers = ML_NONE
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
+        self.supposed_answers = {}
         self.pdf_path = tk.StringVar()
         self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
@@ -105,7 +107,7 @@ class App(BASE):
 
     def _on_pole_change(self,*_):
         # update pole_charge_types scrolling
-        if DEBUG: print( f"from {self.charges_act.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
+        dprint(lambda: f"from {self.charges_act.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
         if not self.pole_var.get() == "":
             self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
             pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
@@ -301,30 +303,41 @@ class App(BASE):
             messagebox.showerror("Erreur", "Veuillez déposer un fichier PDF.")
 
     def _set_file(self, path):
+        self._reset()
+        if path in self.supposed_answers and self.supposed_answers[path] != None :
+            ans = self.supposed_answers[path]
+            self.name_var.set(ans[0])
+            self.date_var.set(ans[1])
+            self.desc_var.set(ans[2])
+            self.amount_var.set(ans[3])
+            
         self.pdf_path.set(path)
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
         self._refresh_preview()
         self._load_pdf_preview(path)
-        self._suppose()
 
-    def _suppose(self):
-        full_text = self._extract_all_text()  # grab text from all pages
-        self.supposed_answers = filtered_extract(full_text)
-        if not (self.supposed_answers==ML_NONE):
-            self.name_var.set(self.supposed_answers[0])
-            self.date_var.set(self.supposed_answers[1])
-            self.desc_var.set(self.supposed_answers[2])
-            self.amount_var.set(self.supposed_answers[3])
-
-    def _extract_all_text(self) -> str:
-        """Return concatenated text from every page of the loaded PDF."""
-        if not self._pdf_doc:
-            return ""
-        return "\n".join(
-            self._pdf_doc[i].get_text("text")
-            for i in range(len(self._pdf_doc))
+    def _suppose_worker(self,path):
+        dprint(lambda:f"[suppose_worker] started for '{path}'")
+        def extract_all_text(path) -> str:
+            """Return concatenated text from every page of the loaded PDF."""
+            if path :
+                _pdf_doc = fitz.open(path)
+            else : 
+                _pdf_doc = self._pdf_doc
+            return "" if not _pdf_doc else "\n".join(
+                _pdf_doc[i].get_text("text")
+                for i in range(len(_pdf_doc))
         )
+        full_text = extract_all_text(path)
+        results =  filtered_extract(full_text)
+        self.after(0, lambda: self._update_ui(results,path))
+
+    def _suppose_async(self, path):
+        self.executor.submit(self._suppose_worker, path)
+
+    def _update_ui(self, results, path):
+        self.supposed_answers[path] = results
 
     def _refresh_preview(self, *_):
         try:
@@ -380,8 +393,8 @@ class App(BASE):
         self.transactions.append((description, tx, dest))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
-            print("second compta var on submit : "+ str(self.second_compta_var.get()))
-            print("account receivable on submit : " +self.act_receivable_act.GetName())
+            dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
+            dprint(lambda:"account receivable on submit : " +self.act_receivable_act.GetName())
         if self.second_compta_var.get() :
             tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
             print("Inserted "+ tx_2_desc)
@@ -403,6 +416,7 @@ class App(BASE):
     def _close(self): 
         self.session.save()
         self.session.end()
+        self.executor.shutdown(wait=False,cancel_futures=True)
         clean_gnucash_folder()
         exit()
 
@@ -485,7 +499,6 @@ class App(BASE):
             self._pdf_canvas.create_text(10, 10, anchor="nw",
                 text=f"Aperçu indisponible:\n{e}", fill=GRAY)
 
-
     def _show_current_page(self):
         if not self._pdf_pages:
             return
@@ -550,7 +563,7 @@ class App(BASE):
                     next_desc, _, _ = self.transactions[i+1]
                     if desc in next_desc : #if the next transaction is the next compta
                         delete_tx_i(i+1)
-                print("Deleted "+ desc)
+                dprint(lambda:"Deleted "+ desc)
                 self.session.save()
                 self.transactions.pop(i)
                 self.tx_listbox.delete(i)
@@ -563,19 +576,28 @@ class App(BASE):
 
     def _pick_folder(self):
         folder = filedialog.askdirectory(initialdir=self.pdf_default_folder_var.get())
+        dprint(lambda:f"[pick_folder] selected = '{folder}'")
         if folder:
             self.pdf_default_folder_var.set(folder)
             set_default_pdf_folder(folder)
+            self.supposed_answers.clear()
+            self.executor.shutdown(wait=False)  # Wait for pending tasks
+            self.executor = ThreadPoolExecutor(max_workers=1)
             self._refresh_pdf_list()
 
     def _refresh_pdf_list(self):
         self.pdf_listbox.delete(0, "end")
         folder = self.pdf_default_folder_var.get()
+        dprint(lambda:f"[refresh] folder = '{folder}'")
+        dprint(lambda:f"[refresh] is_dir = {os.path.isdir(folder)}")
         if os.path.isdir(folder):
             pdfs = sorted(Path(folder).glob("*.pdf"))
+            dprint(lambda:f"[refresh] found {len(pdfs)} PDFs: {[p.name for p in pdfs]}")
             for p in pdfs:
                 self.pdf_listbox.insert("end", p.name)
-
+                full_path = os.path.join(folder, p.name)
+                if full_path not in self.supposed_answers:
+                    self._suppose_async(full_path)
     def _on_pdf_select(self, _=None):
         idx = self.pdf_listbox.curselection()
         if not idx:
@@ -592,6 +614,7 @@ if __name__ == "__main__":
         print("The config file should contain a valid path to the folder UPSecretrariat.") 
         exit()
     clean_gnucash_folder()
+    app = None
     try :
         app = App()
         app.mainloop()
