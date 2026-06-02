@@ -581,7 +581,7 @@ class App(BASE):
             self.pdf_default_folder_var.set(folder)
             set_default_pdf_folder(folder)
             self.supposed_answers.clear()
-            self.executor.shutdown(wait=False)  # Wait for pending tasks
+            self.executor.shutdown(wait=False,cancel_futures=True)  # Wait for pending tasks
             self.executor = ThreadPoolExecutor(max_workers=1)
             self._refresh_pdf_list()
 
