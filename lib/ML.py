@@ -4,6 +4,8 @@ PROMPT = """same order
 Return JSON for these fields, no explanation:
 {"name", "date", "description", "amount"}
 """
+# {"name", "date", "description", "amount", "team"}
+# team can be {"API", "BIBLIO", "CANARD", "CASTOR", "CLUB", "FNR" , "IE" , "JARDIN", "LOWTECH", "MEUBLE", "SCOBY", "DUDU", "UPFL"}
 COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires.<3",
         "*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires. <3",
         "NPA, Localité * :",
@@ -11,7 +13,9 @@ COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obli
         "Signature :", "Pôle d′activité :","Date de la demande :", "Prénom NOM :","Motif :",
         "Montant(CHF) :","Demande de Remboursement"]
 
-TEXT_MODEL = "gemma3:1b"
+TEXT_MODEL_old = "gemma3:1b"
+TEXT_MODEL = "gemma3:4b"
+
 ML_NONE = (None, None, None, None)
 
 
@@ -36,12 +40,9 @@ def filtered_extract(text=None):
         data = json.loads(raw)
     except json.JSONDecodeError:
         return ML_NONE
-    date_split = data.get("date").replace("/","-").replace(".","-").split("-")
-    if len(date_split[0])!=4 :
-        date_split = reversed(date_split) 
     return (
         data.get("name"),
-        "-".join(date_split),
+        data.get("date"),
         data.get("description"),
         data.get("amount"),
     )

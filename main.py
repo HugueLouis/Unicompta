@@ -265,7 +265,7 @@ class App(BASE):
         btn.pack(pady=(15, 15),padx=(150, 50),side = tk.LEFT)
         
         # End button
-        btn_end = self._btn(outer, "  Fermer  ", self._close, activebackground="#D8811D", width=20, height=5)
+        btn_end = self._btn(outer, "  Fermer  ", lambda: exit() , activebackground="#D8811D", width=20, height=5)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
         self._build_transaction_panel(paned)
@@ -350,11 +350,16 @@ class App(BASE):
             self.preview_var.set("")
 
     def _submit(self):
+        date_split = None
         if not self.pdf_path.get():
             messagebox.showerror("Erreur", "Veuillez sélectionner un fichier PDF.")
             return
         try:
-            d = date.fromisoformat(self.date_var.get())
+            # adaptive date selection (- / .) (EU standard or US)
+            date_split = self.date_var.get().replace("/","-").replace(".","-").split("-")
+            if len(date_split[0])!=4 :
+                date_split = reversed(date_split) 
+            d = date.fromisoformat("-".join(date_split))
         except ValueError:
             messagebox.showerror("Erreur", "Format de date invalide.\nUtilisez YYYY-MM-DD.")
             return
@@ -362,12 +367,21 @@ class App(BASE):
         category = self.cat_var.get()
         pole     = self.pole_var.get()
         doc_type = self.type_var.get()
-        amount = Decimal(str(self.amount_var.get()))
+        # adaptive matching of the amount input (, or .)
+        amount_match = re.search(r"-?\d+(\.\d+)?", self.amount_var.get().replace(",","."))
+        amount = Decimal(str(amount_match.group(0)))        
         folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
         description = filename[:-len(".pdf")] + " " + self.name_var.get() + " " + self.desc_var.get()
         source = self.pdf_path.get()
         dest     = os.path.join(folder, filename)
+        # prints in the google sheet format (filename name date amount) with tabs between each, newline to change line
+        google_sheet_line = filename[:-len(".pdf")] + "\t" + self.name_var.get() + "\t"
+        date_split = self.date_var.get().replace("-","/").replace(".","/").split("/")
+        if len(date_split[0])==4 :
+            date_split = reversed(date_split) 
+        google_sheet_line += "/".join(date_split) + "\t" + amount_match.group(0)
+
 
         # copy and rename to the right folder
         os.makedirs(folder, exist_ok=True)
@@ -390,7 +404,7 @@ class App(BASE):
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
-        self.transactions.append((description, tx, dest))
+        self.transactions.append((description, tx, dest, google_sheet_line))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
             dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
@@ -399,7 +413,7 @@ class App(BASE):
             tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
             print("Inserted "+ tx_2_desc)
             tx_2 = add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
-            self.transactions.append((tx_2_desc, tx_2, None)) # Don't add filename because the file is already set on the first
+            self.transactions.append((tx_2_desc, tx_2, None, None)) # Don't add filename because the file is already set on the first
             self.tx_listbox.insert("end", tx_2_desc)
         self.session.save()
         self._reset()
@@ -418,6 +432,9 @@ class App(BASE):
         self.session.end()
         self.executor.shutdown(wait=False,cancel_futures=True)
         clean_gnucash_folder()
+        for (_, _, _, t) in self.transactions :
+            if t != None :
+                print(t)
         exit()
 
     def _build_preview_panel(self, parent):
@@ -512,7 +529,7 @@ class App(BASE):
             self._render_page_text()
 
     def _render_page(self, event=None):
-        if not self._pdf_pages:   # ← guard: nothing loaded yet
+        if not self._pdf_pages:
             return
         canvas = self._pdf_canvas
         cw = canvas.winfo_width() or 300
@@ -526,7 +543,7 @@ class App(BASE):
 
 
     def _render_page_text(self):
-        if not self._pdf_doc:     # ← guard: nothing loaded yet
+        if not self._pdf_doc:
             return
         page = self._pdf_doc[self._pdf_page_idx]
         text = page.get_text("text")
@@ -555,12 +572,12 @@ class App(BASE):
 
     def _delete_selected(self):
         def delete_tx_i(i):
-            desc, tx, filepath = self.transactions[i]
+            desc, tx, filepath, _ = self.transactions[i]
             if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
                 delete_transaction(tx=tx)
                 if filepath : 
                     os.remove(filepath)
-                    next_desc, _, _ = self.transactions[i+1]
+                    next_desc, _, _, _ = self.transactions[i+1]
                     if desc in next_desc : #if the next transaction is the next compta
                         delete_tx_i(i+1)
                 dprint(lambda:"Deleted "+ desc)
