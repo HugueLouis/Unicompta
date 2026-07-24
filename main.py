@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-from concurrent.futures import ThreadPoolExecutor
-import threading
-from datetime import date,timedelta
-import tkinter as tk
-import gzip , shutil, magic, fitz
-from tkinter import ttk, filedialog, messagebox
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 from lib.ML import *
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date,timedelta
+import tkinter as tk
+import gzip , shutil, magic, fitz , subprocess
+from tkinter import ttk, filedialog, messagebox
 from decimal import Decimal
 from pathlib import Path
 from pdf2image import convert_from_path
@@ -33,6 +32,7 @@ TEXT   = "#1E293B"
 GRAY   = "#64748B"
 WHITE  = "#FFFFFF"
 GREEN  = "#16A34A"
+RED  = "#BB3935"
 
 def dprint(str):
     if DEBUG : print(str)
@@ -68,6 +68,23 @@ def clean_gnucash_folder():
             path.unlink()
         else:
             shutil.rmtree(path)
+
+def run_command(*command_str):
+    result = subprocess.run(
+        command_str,
+        cwd=BASE_DIR,
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"bash error: {result.stderr}")
+    return result.stdout.strip()
+
+def check_git_up_to_date(output):
+    return (("Your branch is up-to-date" in output) or ("Already up-to-date" in output))
+        
+def check_git_clean(output):
+    return ("working tree clean"in output)
 
 class App(BASE):
     def __init__(self):
@@ -263,9 +280,11 @@ class App(BASE):
         # Submit button
         btn = self._btn(outer, "  Déposer  ", self._submit, width=20, height=5)
         btn.pack(pady=(15, 15),padx=(150, 50),side = tk.LEFT)
-        
+        # Commit and push button
+        btn_end = self._btn(outer, "  Push  ", self._commit_push_git, bg=RED, activebackground="#D8421D", width=5, height=1)
+        btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         # End button
-        btn_end = self._btn(outer, "  Fermer  ", lambda: exit() , activebackground="#D8811D", width=20, height=5)
+        btn_end = self._btn(outer, "  Fermer\n without push  ", lambda: exit() , activebackground="#D8811D", width=9, height=1)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
         self._build_transaction_panel(paned)
@@ -436,6 +455,25 @@ class App(BASE):
             if t != None :
                 print(t)
         exit()
+
+    def _commit_push_git(self):
+        self.session.save()
+        self.session.end()
+        clean_gnucash_folder()
+        pull_check = run_command("git", "pull")
+        if not check_git_up_to_date(pull_check) :
+            messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
+            print(pull_check)
+            return
+        push_output = run_command("git", "add", ".")
+        push_output = run_command("git", "commit", "-m", "\"Auto push " + str(len(self.transactions)) + " movements\"") ## TEST COMMAND WITHOUT PUSHING TO SEE IF IT WORKS
+        push_output = run_command("git", "push")
+        print(push_output)
+        s = ""
+        for _, _, _, t in self.transactions :
+            if t :
+                s += t+ "\n"
+        messagebox.showinfo("Succès", "Les transactions ont été poussées vers le dépôt Git.\n\n" + s)
 
     def _build_preview_panel(self, parent):
         # Internal state
@@ -631,6 +669,17 @@ if __name__ == "__main__":
         print("The config file should contain a valid path to the folder UPSecretrariat.") 
         exit()
     clean_gnucash_folder()
+    
+    run_command("git", "pull")
+    status_output = run_command("git", "status")
+    if not check_git_up_to_date(status_output) :
+        print("There are unpushed commits or conflicts please fix the differences on git :")
+        print(status_output)
+        exit()
+    if not check_git_clean(status_output) :
+        print("The git repo is not clean, Please be careful and check if the changes/commits are intended")
+        print(status_output)
+        messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended:")
     app = None
     try :
         app = App()
