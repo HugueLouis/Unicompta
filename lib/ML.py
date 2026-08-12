@@ -2,7 +2,7 @@ import ollama, json, re, time
 
 PROMPT = """same order
 Return JSON for these fields, no explanation:
-{"name", "date", "description", "amount"}
+{"name", "date", "description", "amount", "pole_code"}
 """
 # {"name", "date", "description", "amount", "team"}
 # team can be {"API", "BIBLIO", "CANARD", "CASTOR", "CLUB", "FNR" , "IE" , "JARDIN", "LOWTECH", "MEUBLE", "SCOBY", "DUDU", "UPFL"}
@@ -16,7 +16,7 @@ COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obli
 TEXT_MODEL_old = "gemma3:1b"
 TEXT_MODEL = "gemma3:4b"
 
-ML_NONE = (None, None, None, None)
+ML_NONE = (None, None, None, None, None)
 
 
 def remove_substrings(main_string, substrings = COMMON):
@@ -32,7 +32,7 @@ def extract(text=None):
 
 def filtered_extract(text=None):
     """
-    returns the tupple (name, date, description, amount)
+    returns the tupple (name, date, description, amount, pole_code)
     """
     f_text = remove_substrings(text)
     raw = extract(f_text)
@@ -45,4 +45,5 @@ def filtered_extract(text=None):
         data.get("date"),
         data.get("description"),
         data.get("amount"),
+        data.get("pole_code")
     )

@@ -22,6 +22,7 @@ except ImportError:
 
 DEFAULT_SECOND_COMPTA = True
 PREFIX_DESC_SECOND_COMPTA = "n*2 "
+CATEGORIES = ["Pôle", "Comité"]
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -213,15 +214,15 @@ class App(BASE):
 
         # Catégorie
         self.cat_var = tk.StringVar(value="Pôle")
-        self._field(form, 1, "Catégorie", ttk.Combobox(
+        self._field(form, 1, "Pole/comité", ttk.Combobox(
             form, textvariable=self.cat_var,
-            values=["Pôle", "Comité"], state="readonly", width=10))
+            values=CATEGORIES, state="readonly", width=10))
 
         # Pôle
         self.pole_var = tk.StringVar()
         self.pole_combo = ttk.Combobox(
             form, textvariable=self.pole_var, state="readonly", width=20)
-        self._field(form, 2, "Pôle / Comité", self.pole_combo)
+        self._field(form, 2, "Pôle", self.pole_combo)
         # Update poles when date or category changes
         self.date_var.trace_add("write", self._on_cat_change)
         self.cat_var.trace_add("write", self._on_cat_change)
@@ -329,7 +330,9 @@ class App(BASE):
             self.date_var.set(ans[1])
             self.desc_var.set(ans[2])
             self.amount_var.set(ans[3])
-            
+            for c in CATEGORIES:
+                for p in get_poles( date.today(), c):
+                    if ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
         self.pdf_path.set(path)
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
@@ -348,8 +351,11 @@ class App(BASE):
                 _pdf_doc[i].get_text("text")
                 for i in range(len(_pdf_doc))
         )
-        full_text = extract_all_text(path)
-        results =  filtered_extract(full_text)
+        poles_possibles = "poles : {\""
+        for c in CATEGORIES:
+            poles_possibles += ("\", \"").join(get_poles( date.today(), c)) + "\""
+        full_text = poles_possibles+ "}\n\n" +  extract_all_text(path)
+        results = filtered_extract(full_text)
         self.after(0, lambda: self._update_ui(results,path))
 
     def _suppose_async(self, path):
