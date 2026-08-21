@@ -6,7 +6,7 @@ from lib.ML import *
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
-import gzip , shutil, magic, fitz , subprocess
+import gzip , shutil, magic, fitz , subprocess, copykitten
 from tkinter import ttk, filedialog, messagebox
 from decimal import Decimal
 from pathlib import Path
@@ -332,7 +332,7 @@ class App(BASE):
             self.amount_var.set(ans[3])
             for c in CATEGORIES:
                 for p in get_poles( date.today(), c):
-                    if ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
+                    if ans[4] != None and ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
         self.pdf_path.set(path)
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
@@ -400,13 +400,12 @@ class App(BASE):
         description = filename[:-len(".pdf")] + " " + self.name_var.get() + " " + self.desc_var.get()
         source = self.pdf_path.get()
         dest     = os.path.join(folder, filename)
-        # prints in the google sheet format (filename name date amount) with tabs between each, newline to change line
-        google_sheet_line = filename[:-len(".pdf")] + "\t" + self.name_var.get() + "\t"
         date_split = self.date_var.get().replace("-","/").replace(".","/").split("/")
         if len(date_split[0])==4 :
             date_split = reversed(date_split) 
+        # prints in the google sheet format (filename name date amount) with tabs between each, newline to change line
+        google_sheet_line = filename[:-len(".pdf")] + "\t" + self.name_var.get() + "\t"
         google_sheet_line += "/".join(date_split) + "\t" + amount_match.group(0)
-
 
         # copy and rename to the right folder
         os.makedirs(folder, exist_ok=True)
@@ -443,6 +442,14 @@ class App(BASE):
         self.session.save()
         self._reset()
 
+    def _copy_t_clip(self):
+        s = ""
+        for _, _, _, t in self.transactions :
+            if t :
+                s += t+ "\n"
+        copykitten.copy(s)
+        return s
+
     def _reset(self):
         self.pdf_path.set("")
         self.name_var.set("")
@@ -457,9 +464,7 @@ class App(BASE):
         self.session.end()
         self.executor.shutdown(wait=False,cancel_futures=True)
         clean_gnucash_folder()
-        for (_, _, _, t) in self.transactions :
-            if t != None :
-                print(t)
+        self._copy_t_clip()
         exit()
 
     def _commit_push_git(self):
@@ -472,13 +477,10 @@ class App(BASE):
             print(pull_check)
             return
         push_output = run_command("git", "add", ".")
-        push_output = run_command("git", "commit", "-m", "\"Auto push " + str(len(self.transactions)) + " movements\"") ## TEST COMMAND WITHOUT PUSHING TO SEE IF IT WORKS
+        push_output = run_command("git", "commit", "-m", "\"Auto push " + str(len(self.transactions)) + " movements\"")
         push_output = run_command("git", "push")
         print(push_output)
-        s = ""
-        for _, _, _, t in self.transactions :
-            if t :
-                s += t+ "\n"
+        s = self._copy_t_clip()
         messagebox.showinfo("Succès", "Les transactions ont été poussées vers le dépôt Git.\n\n" + s)
 
     def _build_preview_panel(self, parent):

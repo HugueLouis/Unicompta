@@ -20,6 +20,7 @@ pip install -r requirements.txt
 pip install tkinterdnd2
 pip install pdf2image Pillow
 pip install pymupdf
+pip install copykitten
 
 pip install python-magic
 sudo apt-get install libmagic1
