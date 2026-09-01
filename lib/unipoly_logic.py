@@ -7,7 +7,7 @@ CONFIG_FILE = "config"
 DEBUG = 0
 with open(CONFIG_FILE) as f : 
     BASE_DIR = os.path.expanduser(f.readline().strip())
-    if BASE_DIR[-1] != '/' : BASE_DIR += '/'
+    #if BASE_DIR[-1] != '/' : BASE_DIR += '/'
 
 BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine
 BASE_GNUCASH_FOLDER = os.path.expanduser( BASE_DIR +"1 - Comptabilite/")
@@ -17,6 +17,8 @@ DECOMPRESSED_GNUCASH_FILE = GNUCASH_FILE + ".temp"
 CHARGES_ACT_NAME    = "03-Charges"
 ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
 ACT_RECEIVABLE_ACT_NAME = "01-01-Account Receivables (AR)"
+MONTH_START=10
+DAY_START=11
 
 COMITE = "Comité"
 
@@ -24,7 +26,7 @@ COMITE = "Comité"
 
 def folder_for_year_category(d: date, category: str) -> str :
     y = d.year
-    y_str = f"{str(y)}-{str(y + 1)}" if d.month >= 9 else f"{str(y - 1)}-{str(y)}"
+    y_str = f"{str(y)}-{str(y + 1)}" if d.month > MONTH_START or (d.month == MONTH_START and d.day >= DAY_START) else f"{str(y - 1)}-{str(y)}"
     if category == COMITE:
         return os.path.join(BASE_DIR_OUTFLOW, y_str , COMITE)
     return os.path.join(BASE_DIR_OUTFLOW ,y_str , "Pôles")
