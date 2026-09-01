@@ -87,6 +87,12 @@ def check_git_up_to_date(output):
 def check_git_clean(output):
     return ("working tree clean"in output)
 
+def date_to_iso(typed_date) -> date :
+    # adaptive date selection (- / .) (EU standard or US) """
+    date_split = typed_date.replace("/","-").replace(".","-").split("-")
+    if len(date_split[0])!=4 :
+        date_split = reversed(date_split) 
+    return date.fromisoformat("-".join(date_split))
 class App(BASE):
     def __init__(self):
         super().__init__()
@@ -115,9 +121,11 @@ class App(BASE):
 
     def _on_cat_change(self, *_):
         try:
-            d = date.fromisoformat(self.date_var.get())
+            d = date_to_iso(self.date_var.get())
         except ValueError:
-            d = date.today()
+            print("date is wrongfully formated")
+            print(self.date_var.get())
+            return
         # update poles scrolling
         poles = get_poles(d, self.cat_var.get())
         self.pole_combo["values"] = poles
@@ -330,9 +338,13 @@ class App(BASE):
             self.date_var.set(ans[1])
             self.desc_var.set(ans[2])
             self.amount_var.set(ans[3])
-            for c in CATEGORIES:
-                for p in get_poles( date.today(), c):
-                    if ans[4] != None and ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
+            try :
+                for c in CATEGORIES:
+                    for p in get_poles( date_to_iso(self.date_var.get()), c):
+                        if ans[4] != None and ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
+            except : 
+                self.pole_var.set("")
+                self.cat_var.set("")
         self.pdf_path.set(path)
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
@@ -380,11 +392,7 @@ class App(BASE):
             messagebox.showerror("Erreur", "Veuillez sélectionner un fichier PDF.")
             return
         try:
-            # adaptive date selection (- / .) (EU standard or US)
-            date_split = self.date_var.get().replace("/","-").replace(".","-").split("-")
-            if len(date_split[0])!=4 :
-                date_split = reversed(date_split) 
-            d = date.fromisoformat("-".join(date_split))
+            d = date_to_iso(self.date_var.get())
         except ValueError:
             messagebox.showerror("Erreur", "Format de date invalide.\nUtilisez YYYY-MM-DD.")
             return
