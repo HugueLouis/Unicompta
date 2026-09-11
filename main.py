@@ -631,9 +631,10 @@ class App(BASE):
                 delete_transaction(tx=tx)
                 if filepath : 
                     os.remove(filepath)
-                    next_desc, _, _, _ = self.transactions[i+1]
-                    if desc in next_desc : #if the next transaction is the next compta
-                        delete_tx_i(i+1)
+                    if len(self.transactions)>= i+1: 
+                        next_desc, _, _, _ = self.transactions[i+1]
+                        if desc in next_desc : #if the next transaction is the next compta
+                            delete_tx_i(i+1)
                 dprint(lambda:"Deleted "+ desc)
                 self.session.save()
                 self.transactions.pop(i)
