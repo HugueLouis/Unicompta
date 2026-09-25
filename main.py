@@ -102,6 +102,7 @@ class App(BASE):
         self.root_act = self.book.get_root_account()
         self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
         self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
+        self.act_banque_actif_act = find_account_including(self.root_act,ACT_BANQUE_ACTIF)
         self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
         self.transactions = []
         self.pdf_folder = tk.StringVar(value=get_default_pdf_folder())
@@ -111,7 +112,6 @@ class App(BASE):
         self.resizable(True, True)
         self.supposed_answers = {}
         self.pdf_path = tk.StringVar()
-        self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
         self.option_add("*TCombobox.font", ("Helvetica", 17))
         self._build()
@@ -263,18 +263,6 @@ class App(BASE):
         self.amount_var = tk.StringVar()
         self._field(form, 7, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
-        
-        # Second inscription compta
-        self.checkButton_secondCompta = tk.Checkbutton( 
-            form,
-            variable = self.second_compta_var , 
-            onvalue = True, 
-            offvalue = False, 
-            height = 2, 
-            width = 5,
-            font= ("Helvetica", 15, "bold")
-            )
-        self._field(form,8,"Inscrire la second comptabilité",self.checkButton_secondCompta)
 
         # Filename preview
         self.preview_var = tk.StringVar(value="")
@@ -439,14 +427,7 @@ class App(BASE):
         self.transactions.append((description, tx, dest, google_sheet_line))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
-            dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
-            dprint(lambda:"account receivable on submit : " +self.act_receivable_act.GetName())
-        if self.second_compta_var.get() :
-            tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
-            print("Inserted "+ tx_2_desc)
-            tx_2 = add_transaction(self.book,self.act_receivable_act,self.act_payable_act,amount,description,d + timedelta(5))
-            self.transactions.append((tx_2_desc, tx_2, None, None)) # Don't add filename because the file is already set on the first
-            self.tx_listbox.insert("end", tx_2_desc)
+            dprint(lambda:"account on submit : " +self.act_banque_actif_act.GetName())
         self.session.save()
         self._reset()
 
