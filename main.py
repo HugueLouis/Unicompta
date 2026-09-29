@@ -105,7 +105,6 @@ class App(BASE):
         self.act_banque_actif_act = find_account_including(self.root_act,ACT_BANQUE_ACTIF)
         self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
         self.transactions = []
-        self.pdf_folder = tk.StringVar(value=get_default_pdf_folder())
         self.pdf_default_folder_var = tk.StringVar(value=get_default_pdf_folder())
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)

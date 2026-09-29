@@ -18,8 +18,8 @@ CHARGES_ACT_NAME    = "03-Charges"
 ACT_PAYABLE_ACT_NAME = "02-01-Account Payables (AP)"
 ACT_RECEIVABLE_ACT_NAME = "01-01-Account Receivables (AR)"
 ACT_BANQUE_ACTIF = "01-02-01-Banque-Principal"
-MONTH_START=10
-DAY_START=11
+YEAR_CHANGE_MONTH=8
+YEAR_CHANGE_DAY=31
 
 COMITE = "Comité"
 
@@ -27,16 +27,13 @@ COMITE = "Comité"
 
 def folder_for_year_category(d: date, category: str) -> str :
     y = d.year
-    y_str = f"{str(y)}-{str(y + 1)}" if d.month > MONTH_START or (d.month == MONTH_START and d.day >= DAY_START) else f"{str(y - 1)}-{str(y)}"
+    if d.month > YEAR_CHANGE_MONTH or (d.month == YEAR_CHANGE_MONTH and d.day > YEAR_CHANGE_DAY):
+        y_str = f"{str(y)}-{str(y + 1)}"
+    else :
+        y_str = f"{str(y - 1)}-{str(y)}"
     if category == COMITE:
         return os.path.join(BASE_DIR_OUTFLOW, y_str , COMITE)
     return os.path.join(BASE_DIR_OUTFLOW ,y_str , "Pôles")
-
-def target_folder( d : date,category: str, pole: str, doc_type : str) -> str:
-    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - Factures"
-    if category == COMITE:
-        return os.path.join(folder_for_year_category( d,category), pole,doc_type_folder )
-    return os.path.join( folder_for_year_category(d,category), pole,doc_type_folder)
 
 # ── LOGIQUE DU NOM ────────────────────────────────────────────────────
 
@@ -65,7 +62,8 @@ def next_number(folder: str) -> int:
     return max(nums) + 1 if nums else 1
 
 def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
-    folder = target_folder(d,category, pole,doc_type)
+    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - Factures"
+    folder = os.path.join(folder_for_year_category(d,category), pole,doc_type_folder)
     n      = next_number(folder)
     if DEBUG : print(f"date : {d},category : {category}, pole : {pole}, doc_type : {doc_type}")
     return f"{year_code(d)}-{pole_code(pole)}-{doc_type}-{n}.pdf"
