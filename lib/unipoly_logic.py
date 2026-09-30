@@ -35,6 +35,10 @@ def folder_for_year_category(d: date, category: str) -> str :
         return os.path.join(BASE_DIR_OUTFLOW, y_str , COMITE)
     return os.path.join(BASE_DIR_OUTFLOW ,y_str , "Pôles")
 
+def target_folder( d : date,category: str, pole: str, doc_type : str) -> str:
+    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - Factures"
+    return os.path.join( folder_for_year_category(d,category), pole,doc_type_folder)
+
 # ── LOGIQUE DU NOM ────────────────────────────────────────────────────
 
 def year_code(d: date) -> str:
@@ -62,8 +66,7 @@ def next_number(folder: str) -> int:
     return max(nums) + 1 if nums else 1
 
 def build_filename(d: date, category: str, pole: str, doc_type: str) -> str:
-    doc_type_folder = "2 - DDR" if doc_type =="REMB" else "3 - Factures"
-    folder = os.path.join(folder_for_year_category(d,category), pole,doc_type_folder)
+    folder = target_folder(d,category, pole,doc_type)
     n      = next_number(folder)
     if DEBUG : print(f"date : {d},category : {category}, pole : {pole}, doc_type : {doc_type}")
     return f"{year_code(d)}-{pole_code(pole)}-{doc_type}-{n}.pdf"
