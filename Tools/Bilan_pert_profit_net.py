@@ -134,17 +134,17 @@ def graphiques(res: pd.DataFrame, dossier: str) -> list:
         d = res[res["Groupe"] == g].reset_index(drop=True)
         noms = [c.split(" (")[0].strip() for c in d["Compte"]]
         budget = [BUDGET.get(n, 0) for n in noms]   # 0 si le compte n'est pas dans BUDGET
-
         manquants = [n for n in noms if n not in BUDGET]
         if manquants:
             print(f"Attention : pas de budget défini pour {manquants}")
 
         x = list(range(len(d)))
-        w = 0.2
-        ax.bar([i - 1.5 * w for i in x], budget,      w, label="Budget", color=ORANGE)
-        ax.bar([i - 0.5 * w for i in x], d["Profit"], w, label="Profit", color=VERT)
-        ax.bar([i + 0.5 * w for i in x], d["Perte"],  w, label="Perte",  color=ROUGE)
-        ax.bar([i + 1.5 * w for i in x], d["Net"],    w, label="Net",    color=NOIR)
+        w = 0.185
+        start = - 1.5 # -1.5 fois ecartement
+        ax.bar([i + start       * w for i in x], d["Profit"], w, label="Profit", color=VERT)
+        ax.bar([i + (start + 1) * w for i in x], d["Perte"],  w, label="Perte",  color=ROUGE)
+        ax.bar([i + (start + 2) * w for i in x], d["Net"],    w, label="Net",    color=NOIR)
+        ax.bar([i + (start + 3) * w for i in x], budget,      w, label="Budget", color=ORANGE)
         ax.axhline(0, color=NOIR, lw=0.8)
         ax.set_xticks(x)
         ax.set_xticklabels(noms, rotation=35, ha="right", fontsize=10)
