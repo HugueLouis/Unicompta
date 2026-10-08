@@ -165,11 +165,11 @@ class App(BASE):
         folder_row = tk.Frame(outer, bg=WHITE)
         folder_row.pack(fill="x", pady=(0, 10))
 
-        tk.Label(folder_row, text="Dossier PDF :", font=("Helvetica", 13),
+        tk.Label(folder_row, text="Dossier configuré :", font=("Helvetica", 13),
                 bg=WHITE, fg=TEXT).pack(side="left")
         tk.Label(folder_row, textvariable=self.pdf_default_folder_var,
                 font=("Helvetica", 11), fg=GRAY, bg=WHITE).pack(side="left", padx=8)
-        self._btn(folder_row, "Choisir…", self._pick_folder).pack(side="left")
+        self._btn(folder_row, "Choisir folder des REMB a traiter", self._pick_folder).pack(side="left")
 
 
 
@@ -194,7 +194,7 @@ class App(BASE):
         # --- Drag and drop zone
         self.drop = tk.Label(
             outer,
-            text="📄  drag and drop PDF here\n\n Or click to browse",
+            text="drag and drop PDF here\n\n Or click to choose pdf",
             font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
             cursor="hand2", padx=20, pady=10, width=80, height=2,
         )
