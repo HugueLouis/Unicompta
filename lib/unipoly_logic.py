@@ -20,8 +20,9 @@ ACT_RECEIVABLE_ACT_NAME = "01-01-Account Receivables (AR)"
 ACT_BANQUE_ACTIF = "01-02-01-Banque-Principal"
 YEAR_CHANGE_MONTH=8
 YEAR_CHANGE_DAY=31
-
+YEAR_BUMP_S_C = 40
 COMITE = "Comité"
+
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
 

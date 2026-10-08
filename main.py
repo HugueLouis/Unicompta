@@ -89,7 +89,7 @@ def check_git_clean(output):
 
 def date_to_iso(typed_date) -> date :
     # adaptive date selection (- / .) (EU standard or US) """
-    date_split = typed_date.replace("/","-").replace(".","-").split("-")
+    date_split = typed_date.strip().replace("/","-").replace(".","-").replace(" ","-").split("-")
     if len(date_split[0])!=4 :
         date_split = reversed(date_split) 
     return date.fromisoformat("-".join(date_split))
@@ -104,12 +104,13 @@ class App(BASE):
         self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
         self.act_banque_actif_act = find_account_including(self.root_act,ACT_BANQUE_ACTIF)
         self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
+        self.supposed_answers = {}
         self.transactions = []
+        self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
         self.pdf_default_folder_var = tk.StringVar(value=get_default_pdf_folder())
         self.title("Dépôt PDF")
         self.configure(bg=WHITE)
         self.resizable(True, True)
-        self.supposed_answers = {}
         self.pdf_path = tk.StringVar()
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
         self.option_add("*TCombobox.font", ("Helvetica", 17))
@@ -137,7 +138,7 @@ class App(BASE):
             self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
             pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
             self.pole_charge_type_var_combo["values"] = pole_charge_types_str
-        self.pole_charge_type_var_str.set("") 
+        self.pole_charge_type_var_str.set("")
 
     def _btn(self, parent, text, cmd, bg=BLUE, fg=WHITE, **kw):
         return tk.Button(parent, text=text, command=cmd,
@@ -263,6 +264,18 @@ class App(BASE):
         self._field(form, 7, "Montant (chf)", tk.Entry(
             form, textvariable=self.amount_var, **self._entry_kw(width=14)))
 
+        # Second inscription compta
+        self.checkButton_secondCompta = tk.Checkbutton( 
+            form,
+            variable = self.second_compta_var , 
+            onvalue = True, 
+            offvalue = False, 
+            height = 2, 
+            width = 5,
+            font= ("Helvetica", 15, "bold")
+            )
+        self._field(form,8,"Inscrire la second comptabilité",self.checkButton_secondCompta)
+
         # Filename preview
         self.preview_var = tk.StringVar(value="")
         self.preview_lbl = tk.Label(outer, textvariable=self.preview_var,
@@ -387,9 +400,19 @@ class App(BASE):
         category = self.cat_var.get()
         pole     = self.pole_var.get()
         doc_type = self.type_var.get()
+        if category == "":
+            messagebox.showerror("Erreur", "Choisissez Poles ou Comite")
+            return
+        if pole == "":
+                    messagebox.showerror("Erreur", "Choisissez un Pole")
+                    return
         # adaptive matching of the amount input (, or .)
-        amount_match = re.search(r"-?\d+(\.\d+)?", self.amount_var.get().replace(",","."))
-        amount = Decimal(str(amount_match.group(0)))        
+        try:
+            amount_match = re.search(r"-?\d+(\.\d+)?", self.amount_var.get().replace(",","."))
+            amount = Decimal(str(amount_match.group(0)))    
+        except AttributeError:
+            messagebox.showerror("Erreur", "Entrez un montant")
+            return
         folder   = target_folder(d,category, pole,doc_type)
         filename = build_filename(d, category, pole, doc_type)
         description = filename[:-len(".pdf")] + " " + self.name_var.get() + " " + self.desc_var.get()
@@ -426,7 +449,15 @@ class App(BASE):
         self.transactions.append((description, tx, dest, google_sheet_line))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
-            dprint(lambda:"account on submit : " +self.act_banque_actif_act.GetName())
+            dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
+            dprint(lambda:"account receivable on submit : " +self.act_banque_actif_act.GetName())
+        if self.second_compta_var.get() :
+            tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
+            print("Inserted "+ tx_2_desc)
+            tx_2 = add_transaction(self.book,self.act_banque_actif_act,self.act_payable_act,amount,description,d + timedelta(365*YEAR_BUMP_S_C))
+            self.transactions.append((tx_2_desc, tx_2, None, None)) # Don't add filename because the file is already set on the first
+            self.tx_listbox.insert("end", tx_2_desc)
+
         self.session.save()
         self._reset()
 
