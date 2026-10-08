@@ -292,6 +292,11 @@ class App(BASE):
         # Commit and push button
         btn_end = self._btn(outer, "  Push  ", self._commit_push_git, bg=RED, activebackground="#D8421D", width=5, height=1)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
+
+        # (git) reset (--hard HEAD~1) button
+        btn_end = self._btn(outer, "  Reset repo  ", self._reset_hard_git, bg=RED, activebackground="#D8421D", width=5, height=1)
+        btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
+
         # End button
         btn_end = self._btn(outer, "  Fermer\n without push  ", lambda: exit() , activebackground="#D8811D", width=9, height=1)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
@@ -501,6 +506,17 @@ class App(BASE):
         print(push_output)
         s = self._copy_t_clip()
         messagebox.showinfo("Succès", "Les transactions ont été poussées vers le dépôt Git.\n\n" + s)
+
+    def _reset_hard_git(self):
+        self.session.save()
+        self.session.end()
+        clean_gnucash_folder()
+        run_command("git", "fetch","origin")
+        run_command("git", "add",".")
+        run_command("git", "reset","--hard","origin/"+GIT_BRANCH_NAME)
+        messagebox.showinfo("Succès", "votre git a été reset.\n\n")
+
+
 
     def _build_preview_panel(self, parent):
         # Internal state
