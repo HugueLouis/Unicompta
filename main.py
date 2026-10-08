@@ -2,7 +2,7 @@
 
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
-from lib.ML import *
+from lib.ML import filtered_extract
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
@@ -719,17 +719,22 @@ if __name__ == "__main__":
         exit()
     clean_gnucash_folder()
     
-    run_command("git", "pull")
-    status_output = run_command("git", "status")
-    if not check_git_up_to_date(status_output) :
-        print("There are unpushed commits or conflicts please fix the differences on git :")
-        print(status_output)
-        exit()
-    if not check_git_clean(status_output) :
-        messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
     app = None
     try :
+        # show app
         app = App()
+
+        # start git on the side
+        run_command("git", "pull")
+        status_output = run_command("git", "status")
+        if not check_git_up_to_date(status_output) :
+            print("There are unpushed commits or conflicts please fix the differences on git :")
+            print(status_output)
+            exit()
+        if not check_git_clean(status_output) :
+            messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
+
+        # then app becomes interactive
         app.mainloop()
     finally :
         # in any scenario we want to make sure that the folder is clean and the session is saved + ended
