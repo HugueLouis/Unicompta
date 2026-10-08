@@ -502,6 +502,11 @@ class App(BASE):
             return
         push_output = run_command("git", "add", ".")
         push_output = run_command("git", "commit", "-m", "\"Auto push " + str(len(self.transactions)) + " movements\"")
+        clean_check = run_command("git", "pull")
+        if not check_git_clean(clean_check) :
+            messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
+            print(pull_check)
+            return
         push_output = run_command("git", "push")
         print(push_output)
         s = self._copy_t_clip()
@@ -721,9 +726,7 @@ if __name__ == "__main__":
         print(status_output)
         exit()
     if not check_git_clean(status_output) :
-        print("The git repo is not clean, Please be careful and check if the changes/commits are intended")
-        print(status_output)
-        messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended:")
+        messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
     app = None
     try :
         app = App()

@@ -22,6 +22,7 @@ YEAR_CHANGE_MONTH=8
 YEAR_CHANGE_DAY=31
 YEAR_BUMP_S_C = 40
 COMITE = "Comité"
+GIT_BRANCH_NAME = "main"
 
 
 # ── LOGIQUE DU DOSSIER ─────────────────────────────────────────────────────
