@@ -1,4 +1,11 @@
-import ollama, json, re
+import json, re
+
+try:
+    import ollama
+except ImportError:
+    print("Ollama import failed, code still running but answers won't be pre-filled.\n" \
+    "To fix this issue : install ollama and use correct python venv")
+    ollama = None
 
 PROMPT = """same order
 Return JSON for these fields, no explanation:
@@ -34,16 +41,17 @@ def filtered_extract(text=None):
     """
     returns the tupple (name, date, description, amount, pole_code)
     """
-    f_text = remove_substrings(text)
-    raw = extract(f_text)
+    if ollama is None:
+        return ML_NONE
     try:
+        raw = extract(remove_substrings(text))
         data = json.loads(raw)
+        return (
+            data.get("name"),
+            data.get("date"),
+            data.get("description"),
+            data.get("amount"),
+            data.get("pole_code")
+        )
     except json.JSONDecodeError:
         return ML_NONE
-    return (
-        data.get("name"),
-        data.get("date"),
-        data.get("description"),
-        data.get("amount"),
-        data.get("pole_code")
-    )
