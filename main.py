@@ -144,7 +144,11 @@ class App(BASE):
 
     def _build(self):
 
-        paned = tk.PanedWindow(self, orient=tk.HORIZONTAL, bg=WHITE, sashwidth=4)
+        self.nb = ttk.Notebook(self)
+        self.nb.pack(fill="both", expand=True)
+        page = tk.Frame(self.nb, bg=WHITE)
+        self.nb.add(page, text="Deposit pdf")
+        paned = tk.PanedWindow(page, orient=tk.HORIZONTAL, bg=WHITE, sashwidth=4)
         paned.pack(fill="both", expand=True)
 
         # Left: form
@@ -297,6 +301,36 @@ class App(BASE):
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
         self._build_transaction_panel(paned)
+
+
+        #! New page
+        second_writtings = tk.Frame(self.nb, bg=WHITE)
+        self.nb.add(tk.Frame(self.nb, bg=WHITE), text="second writtings")
+        tk.Label(second_writtings, text="Contents").pack(pady=20)
+        # We have to choose a pdf (postfinance) to extract to csv (Tools)
+        # Gnucash is already opened
+        # Open the "Banque actif" and compare
+        # Most of them should exist already and only the dates should be fixed
+        # like if the amount is unique we can suppose that they are linked and update :
+        #  <transaction date> = <post finance date> 
+
+        # graphically what we need 
+
+        # pdf drag and drop / browser
+
+        # colum with missing transactions in the gnucash
+
+        # colum with additionnal transactions from the gnucash 
+
+        # the algo runs and matches those and proposes a merge
+
+        # for those without links we leave the human to do it
+
+
+        #! New page
+        second_writtings = tk.Frame(self.nb, bg=WHITE)
+        self.nb.add(tk.Frame(self.nb, bg=WHITE), text="second writtings")
+        tk.Label(second_writtings, text="Contents").pack(pady=20)
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -709,6 +743,7 @@ if __name__ == "__main__":
     if not os.path.isdir(BASE_DIR):
         print("The config file should contain a valid path to the folder UPSecretrariat.") 
         exit()
+    clean_gnucash_folder()
 
     app = None
     try :
