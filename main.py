@@ -340,6 +340,10 @@ class App(BASE):
         self.missing_listbox = self._listbox_column(cols, "Missing in GnuCash")
         self.extra_listbox = self._listbox_column(cols, "Additionnal in GnuCash")
 
+        matched_frame = tk.Frame(tab, bg=WHITE)
+        matched_frame.pack(fill="both", expand=True, pady=(12, 0))
+        self.matched_listbox = self._listbox_column(matched_frame, "Matched (bank ⇄ GnuCash)")
+
     def _listbox_column(self, parent, title):
         col = tk.Frame(parent, bg=WHITE)
         col.pack(side="left", fill="both", expand=True, padx=6)
@@ -373,14 +377,33 @@ class App(BASE):
             self.missing_listbox.insert("end", format_bank_row(b))
         for g in self.extra:
             self.extra_listbox.insert("end", format_gnc_row(g))
+        self.matched_listbox.delete(0, "end")
+        for k, m in enumerate(self.mapped):
+            self.matched_listbox.insert(
+                "end",
+                f"{format_bank_row(m['bank'])}  ⇄  {format_gnc_row(m['gnucash'])}  (Δ {m['day_diff']}d)")
+            # green = same date, amber = date needs fixing
+            bg = "#DCFCE7" if m["day_diff"] == 0 else "#FEF3C7"
+            self.matched_listbox.itemconfig(k, bg=bg, fg="#14532D" if m["day_diff"] == 0 else "#78350F")
 
     def _run_merge_post_gnu(self):
         if not self.match_csv_path:
             messagebox.showwarning("Attention", "First choose a csv from postfinance")
             return
-        # Next step: create GnuCash transactions for self.missing via add_transaction(...)
-        # The counterpart account (expense/income) has to be chosen per row, e.g. by description rules.
         self._run_matching()
+        fixed = 0
+        for m in self.mapped:
+            if m["day_diff"] == 0:
+                continue
+            d = m["bank"]["date"]
+            tx = m["gnucash"]["transaction"]
+            tx.BeginEdit()
+            tx.SetDate(d.day, d.month, d.year)
+            tx.CommitEdit()
+            fixed += 1
+        self.session.save()
+        self._run_matching()
+        messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
 
     # ── Events ────────────────────────────────────────────────────────────────
 

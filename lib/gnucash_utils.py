@@ -142,6 +142,7 @@ def get_transaction_info(tx: Transaction, account=None) -> dict:
         "num": tx.GetNum(),
         "currency": tx.GetCurrency().get_mnemonic(),
         "splits": [],
+        "transaction": tx,
     }
  
     for split in tx.GetSplitList():
