@@ -24,6 +24,7 @@ except ImportError:
 DEFAULT_SECOND_COMPTA = True
 PREFIX_DESC_SECOND_COMPTA = "n*2 "
 CATEGORIES = ["Pôle", "Comité"]
+SUBTEXT_CREDIT = "Crédit de"
 
 # ── INTERFACE ─────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ class App(BASE):
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.book = self.session.book
         self.root_act = self.book.get_root_account()
+        self.act_imbalance_act = find_account_including(self.root_act,ACT_IMBALANCE)
         self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
         self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
         self.act_banque_actif_act = find_account_including(self.root_act,ACT_BANQUE_ACTIF)
@@ -333,7 +335,9 @@ class App(BASE):
                  font=("Helvetica", 11)).pack(side="left", padx=8)
 
         self._btn(top, "Start merging", self._run_merge_post_gnu, bg=RED).pack(side="right")
+        self._btn(top, "Add credits to imbalance", self._run_submit_credits, bg=RED).pack(side="right")
         self._btn(top, "Start comparison", self._run_matching).pack(side="right")
+
 
         cols = tk.Frame(tab, bg=WHITE)
         cols.pack(fill="both", expand=True, pady=(12, 0))
@@ -373,8 +377,10 @@ class App(BASE):
 
         self.missing_listbox.delete(0, "end")
         self.extra_listbox.delete(0, "end")
-        for b in self.missing:
+        for k, b in enumerate(self.missing):
             self.missing_listbox.insert("end", format_bank_row(b))
+            if b["amount"]>0 : self.missing_listbox.itemconfig(k, bg="#FFD9F5" ,fg="#520A4C")
+            else : self.missing_listbox.itemconfig(k, bg="#FFDAD9" ,fg="#520A0A")
         for g in self.extra:
             self.extra_listbox.insert("end", format_gnc_row(g))
         self.matched_listbox.delete(0, "end")
@@ -390,7 +396,9 @@ class App(BASE):
         if not self.match_csv_path:
             messagebox.showwarning("Attention", "First choose a csv from postfinance")
             return
-        self._run_matching()
+        if not self.mapped:
+                    messagebox.showwarning("Attention", "First run the matching algorithm")
+                    return
         fixed = 0
         for m in self.mapped:
             if m["day_diff"] == 0:
@@ -404,6 +412,24 @@ class App(BASE):
         self.session.save()
         self._run_matching()
         messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
+
+    def _run_submit_credits(self):
+            # This create the transactions at the right :
+            #  {date, amount, description, banque principal account} but from the WRONG account
+            if not self.match_csv_path:
+                messagebox.showwarning("Attention", "First choose a csv from postfinance")
+                return
+            if not self.mapped:
+                                messagebox.showwarning("Attention", "First run the matching algorithm")
+                                return
+            fixed = 0
+            for m in self.missing:
+                if m["amount"]>0:                    
+                    add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
+                    fixed += 1
+            self.session.save()
+            self._run_matching()
+            messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
 
     # ── Events ────────────────────────────────────────────────────────────────
 
