@@ -503,9 +503,9 @@ class App(BASE):
     def _reset_hard_git(self):
         git_fetch()
         git_add()
+        if len(self.transactions)>0 : check_decompress_gnucash_file()
         while len(self.transactions)>0:
             #! so we decompress
-            check_decompress_gnucash_file()
             self._delete_tx_i(0)
         run_command("git", "reset","--hard","origin/"+GIT_BRANCH_NAME)
         run_command("git", "clean","-fd")
