@@ -417,6 +417,7 @@ class App(BASE):
         self._load_pdf_preview(path)
 
     def _suppose_worker(self,path):
+        from lib.ML import filtered_extract
         dprint(lambda:f"[suppose_worker] started for '{path}'")
         def extract_all_text(path) -> str:
             """Return concatenated text from every page of the loaded PDF."""
@@ -436,6 +437,7 @@ class App(BASE):
         self.after(0, lambda: self._update_ui(results,path))
 
     def _suppose_async(self, path):
+        #! starting workers
         self.executor.submit(self._suppose_worker, path)
 
     def _update_ui(self, results, path):
@@ -796,6 +798,5 @@ if __name__ == "__main__":
         app.mainloop()
     finally :
         # in any scenario we want to make sure that the folder is clean and the session is saved + ended
-        print("final exit")
         app._close()
         
