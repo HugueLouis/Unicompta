@@ -293,7 +293,7 @@ class App(BASE):
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
 
         # (git) reset (--hard HEAD~1) button
-        btn_end = self._btn(outer, "  Reset repo  ", self._reset_hard_git, bg=RED, activebackground="#D8421D", width=5, height=1)
+        btn_end = self._btn(outer, "  Reset repo  ", self._reset_hard_git, bg=RED, activebackground="#D8421D", width=7, height=1)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
 
         # End button
@@ -303,34 +303,7 @@ class App(BASE):
         self._build_transaction_panel(paned)
 
 
-        #! New page
-        second_writtings = tk.Frame(self.nb, bg=WHITE)
-        self.nb.add(tk.Frame(self.nb, bg=WHITE), text="second writtings")
-        tk.Label(second_writtings, text="Contents").pack(pady=20)
-        # We have to choose a pdf (postfinance) to extract to csv (Tools)
-        # Gnucash is already opened
-        # Open the "Banque actif" and compare
-        # Most of them should exist already and only the dates should be fixed
-        # like if the amount is unique we can suppose that they are linked and update :
-        #  <transaction date> = <post finance date> 
-
-        # graphically what we need 
-
-        # pdf drag and drop / browser
-
-        # colum with missing transactions in the gnucash
-
-        # colum with additionnal transactions from the gnucash 
-
-        # the algo runs and matches those and proposes a merge
-
-        # for those without links we leave the human to do it
-
-
-        #! New page
-        second_writtings = tk.Frame(self.nb, bg=WHITE)
-        self.nb.add(tk.Frame(self.nb, bg=WHITE), text="second writtings")
-        tk.Label(second_writtings, text="Contents").pack(pady=20)
+        self._build_matching_tab()
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -345,6 +318,64 @@ class App(BASE):
             highlightbackground=BORDER, highlightcolor=BLUE,
             width=width, insertbackground=BLUE,
         )
+
+    # __ Other pages ___________________________________________________________
+    def _build_matching_tab(self):
+        self.match_pdf_path = None
+        tab = tk.Frame(self.nb, bg=WHITE, padx=20, pady=20)
+        self.nb.add(tab, text="second writtings")
+
+        top = tk.Frame(tab, bg=WHITE)
+        top.pack(fill="x")
+        self._btn(top, "Choose post fincance pdf to compare against  Gnucash Actif : Banque principal", self._pick_match_pdf).pack(side="left")
+        self.match_pdf_var = tk.StringVar(value="No pdf")
+        tk.Label(top, textvariable=self.match_pdf_var, bg=WHITE, fg=GRAY,
+                 font=("Helvetica", 11)).pack(side="left", padx=8)
+
+        self._btn(top, "Start merging", self._run_merge_post_gnu, bg=RED).pack(side="right")
+        self._btn(top, "Start comparison", self._run_matching).pack(side="right")
+
+        cols = tk.Frame(tab, bg=WHITE)
+        cols.pack(fill="both", expand=True, pady=(12, 0))
+        self.missing_listbox = self._listbox_column(cols, "Missing in GnuCash")
+        self.extra_listbox = self._listbox_column(cols, "Additionnal in GnuCash")
+
+    def _listbox_column(self, parent, title):
+        col = tk.Frame(parent, bg=WHITE)
+        col.pack(side="left", fill="both", expand=True, padx=6)
+        tk.Label(col, text=title, font=("Helvetica", 13, "bold"),
+                 bg=WHITE, fg=TEXT).pack(anchor="w")
+        lb = tk.Listbox(col, font=("Helvetica", 11), relief="solid", bd=1)
+        lb.pack(fill="both", expand=True)
+        return lb
+
+    def _pick_match_pdf(self):
+        path = filedialog.askopenfilename(
+            initialdir=self.pdf_default_folder_var.get(),
+            filetypes=[("PDF", "*.pdf")])
+        if path:
+            self.match_pdf_path = path
+            self.match_pdf_var.set(os.path.basename(path))
+
+    def _run_matching(self):
+        if not self.match_pdf_path:
+            messagebox.showwarning("Attention", "First choose a pdf in postfinance")
+            return
+        # TODO: plug in your existing algo here, e.g.
+        # self.missing, self.extra = your_matching_function(self.match_pdf_path, self.book, self.act_banque_actif_act)
+        # 
+        # self.missing_listbox.delete(0, "end")
+        # self.extra_listbox.delete(0, "end")
+        # for d in self.missing: self.missing_listbox.insert("end", d)
+        # for d in self.extra: self.extra_listbox.insert("end", d)
+
+    def _run_merge_post_gnu(self):
+            if not self.match_pdf_path:
+                messagebox.showwarning("Attention", "First choose a pdf in postfinance")
+                return
+            # TODO: plug in your existing algo here, e.g.
+            # call merging on self.missing and self.extra to apply to the gnucash
+            self._run_matching()
 
     # ── Events ────────────────────────────────────────────────────────────────
 
