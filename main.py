@@ -2,11 +2,12 @@
 
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
+from lib.git_utils import *
 from lib.ML import filtered_extract
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
-import gzip , shutil, magic, fitz , subprocess, copykitten
+import gzip , shutil, magic, fitz, copykitten
 from tkinter import ttk, filedialog, messagebox
 from decimal import Decimal
 from pathlib import Path
@@ -70,22 +71,16 @@ def clean_gnucash_folder():
         else:
             shutil.rmtree(path)
 
-def run_command(*command_str):
-    result = subprocess.run(
-        command_str,
-        cwd=BASE_DIR,
-        capture_output=True,
-        text=True
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"bash error: {result.stderr}")
-    return result.stdout.strip()
 
-def check_git_up_to_date(output):
-    return (("Your branch is up-to-date" in output) or ("Already up-to-date" in output))
-        
-def check_git_clean(output):
-    return ("working tree clean"in output)
+def check_decompress_gnucash_file():
+    clean_gnucash_folder()
+    # check if the file is compressed or not if it is compressed the decompress it
+    if "gzip" in  magic.from_file(GNUCASH_FILE) : 
+        # decompress
+        with gzip.open(GNUCASH_FILE, "rb") as f_in:
+            with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+                os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
 
 def date_to_iso(typed_date) -> date :
     # adaptive date selection (- / .) (EU standard or US) """
@@ -391,6 +386,7 @@ class App(BASE):
         except Exception:
             self.preview_var.set("")
 
+    #! modifies the gnucash file
     def _submit(self):
         date_split = None
         if not self.pdf_path.get():
@@ -439,15 +435,8 @@ class App(BASE):
         source_dir = os.path.dirname(source)
         new_source_path = os.path.join(source_dir, filename)
         os.rename(source, new_source_path)
-
-        # check if the file is compressed or not if it is compressed the decompress it
-        if "gzip" in  magic.from_file(GNUCASH_FILE) : 
-            # decompress
-            with gzip.open(GNUCASH_FILE, "rb") as f_in:
-                with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-                    os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
-
+        #! so we decompress
+        check_decompress_gnucash_file()
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
@@ -495,33 +484,32 @@ class App(BASE):
         self.session.save()
         self.session.end()
         clean_gnucash_folder()
-        pull_check = run_command("git", "pull")
+        pull_check = git_pull()
         if not check_git_up_to_date(pull_check) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
             print(pull_check)
             return
-        push_output = run_command("git", "add", ".")
-        push_output = run_command("git", "commit", "-m", "\"Auto push " + str(len(self.transactions)) + " movements\"")
-        clean_check = run_command("git", "pull")
-        if not check_git_clean(clean_check) :
+        git_add()
+        git_commit("\"Auto push " + str(len(self.transactions)) + " movements\"")
+        if not check_git_clean(git_pull()) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
             print(pull_check)
             return
-        push_output = run_command("git", "push")
-        print(push_output)
+        print(git_push())
         s = self._copy_t_clip()
         messagebox.showinfo("Succès", "Les transactions ont été poussées vers le dépôt Git.\n\n" + s)
-
+        
+    #! modifies the gnucash file
     def _reset_hard_git(self):
-        self.session.save()
-        self.session.end()
-        clean_gnucash_folder()
-        run_command("git", "fetch","origin")
-        run_command("git", "add",".")
+        git_fetch()
+        git_add()
+        while len(self.transactions)>0:
+            #! so we decompress
+            check_decompress_gnucash_file()
+            self._delete_tx_i(0)
         run_command("git", "reset","--hard","origin/"+GIT_BRANCH_NAME)
-        messagebox.showinfo("Succès", "votre git a été reset.\n\n")
-
-
+        run_command("git", "clean","-fd")
+        messagebox.showinfo("Succès", "votre git a été reset et le fichier gnucash.\n\n")
 
     def _build_preview_panel(self, parent):
         # Internal state
@@ -656,30 +644,31 @@ class App(BASE):
         self._btn(frame, "🗑 Supprimer", self._delete_selected,
                 bg="#DC2626").pack(fill="x", pady=(8, 0))
 
-    def _delete_selected(self):
-        def delete_tx_i(i):
-            desc, tx, filepath, _, old_source, source_path = self.transactions[i]
-            if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
-                delete_transaction(tx=tx)
-                if filepath : 
-                    os.remove(filepath)
-                    if len(self.transactions)>= i+1: 
-                        next_desc, _, _, _, _ , _  = self.transactions[i+1]
-                        if desc in next_desc : #if the next transaction is the next compta
-                            delete_tx_i(i+1)
-                if old_source and source_path : # that way we undo the naming on the original file
-                    os.rename(source_path ,old_source)
+    def _delete_tx_i(self, i):
+        desc, tx, filepath, _, old_source, source_path = self.transactions[i]
+        delete_transaction(tx=tx)
+        if filepath : 
+            os.remove(filepath)
+            if len(self.transactions)>= i+1: 
+                next_desc, _, _, _, _ , _  = self.transactions[i+1]
+                if desc in next_desc : #if the next transaction is the next compta
+                    self._delete_tx_i(i+1)
+        if old_source and source_path : # that way we undo the naming on the original file
+            os.rename(source_path ,old_source)
 
-                dprint(lambda:"Deleted "+ desc)
-                self.session.save()
-                self.transactions.pop(i)
-                self.tx_listbox.delete(i)
+        dprint(lambda:"Deleted "+ desc)
+        self.transactions.pop(i)
+        self.tx_listbox.delete(i)
+
+    def _delete_selected(self):
+        check_decompress_gnucash_file()
         idx = self.tx_listbox.curselection()
         if not idx:
             messagebox.showwarning("Attention", "Sélectionnez une transaction.")
             return
         i = idx[0]
-        delete_tx_i(i)
+        self._delete_tx_i(i)
+        self.session.save()
 
     def _pick_folder(self):
         folder = filedialog.askdirectory(initialdir=self.pdf_default_folder_var.get())
@@ -720,16 +709,16 @@ if __name__ == "__main__":
     if not os.path.isdir(BASE_DIR):
         print("The config file should contain a valid path to the folder UPSecretrariat.") 
         exit()
-    clean_gnucash_folder()
-    
+
     app = None
     try :
         # show app
         app = App()
-
+        # define the terminal that we use for git
+        git_set_terminal_dir(BASE_DIR)
         # start git on the side
-        run_command("git", "pull")
-        status_output = run_command("git", "status")
+        git_pull()
+        status_output = git_status()
         if not check_git_up_to_date(status_output) :
             print("There are unpushed commits or conflicts please fix the differences on git :")
             print(status_output)
@@ -741,5 +730,6 @@ if __name__ == "__main__":
         app.mainloop()
     finally :
         # in any scenario we want to make sure that the folder is clean and the session is saved + ended
+        print("final exit")
         app._close()
         
