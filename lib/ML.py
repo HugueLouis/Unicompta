@@ -1,4 +1,4 @@
-import ollama, json, re, time
+import ollama, json, re
 
 PROMPT = """same order
 Return JSON for these fields, no explanation:

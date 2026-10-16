@@ -451,7 +451,7 @@ class App(BASE):
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
-        self.transactions.append((description, tx, dest, google_sheet_line))
+        self.transactions.append((description, tx, dest, google_sheet_line, source ,new_source_path))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
             dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
@@ -460,7 +460,7 @@ class App(BASE):
             tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
             print("Inserted "+ tx_2_desc)
             tx_2 = add_transaction(self.book,self.act_banque_actif_act,self.act_payable_act,amount,description,d + timedelta(365*YEAR_BUMP_S_C))
-            self.transactions.append((tx_2_desc, tx_2, None, None)) # Don't add filename because the file is already set on the first
+            self.transactions.append((tx_2_desc, tx_2, None, None, None, None)) # Don't add filename because the file is already set on the first
             self.tx_listbox.insert("end", tx_2_desc)
 
         self.session.save()
@@ -658,15 +658,18 @@ class App(BASE):
 
     def _delete_selected(self):
         def delete_tx_i(i):
-            desc, tx, filepath, _ = self.transactions[i]
+            desc, tx, filepath, _, old_source, source_path = self.transactions[i]
             if messagebox.askyesno("Confirmer", f"Supprimer :\n{desc} ?"):
                 delete_transaction(tx=tx)
                 if filepath : 
                     os.remove(filepath)
                     if len(self.transactions)>= i+1: 
-                        next_desc, _, _, _ = self.transactions[i+1]
+                        next_desc, _, _, _, _ , _  = self.transactions[i+1]
                         if desc in next_desc : #if the next transaction is the next compta
                             delete_tx_i(i+1)
+                if old_source and source_path : # that way we undo the naming on the original file
+                    os.rename(source_path ,old_source)
+
                 dprint(lambda:"Deleted "+ desc)
                 self.session.save()
                 self.transactions.pop(i)
