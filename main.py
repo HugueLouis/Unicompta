@@ -491,7 +491,7 @@ class App(BASE):
 
     def _copy_t_clip(self):
         s = ""
-        for _, _, _, t in self.transactions :
+        for _, _, _, t,_ ,_ in self.transactions :
             if t :
                 s += t+ "\n"
         copykitten.copy(s)
