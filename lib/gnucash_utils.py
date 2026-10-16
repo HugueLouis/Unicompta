@@ -162,7 +162,7 @@ def get_transaction_info(tx: Transaction, account=None) -> dict:
  
     return info
 
-def list_transactions(account, start_date, end_date, include_subaccounts=False) -> list:
+def list_transactions(account, start_date, end_date, include_subaccounts=False, filter_by_end_date = True) -> list:
     """
     List all transactions touching `account` (and optionally its sub-accounts)
     between start_date and end_date (inclusive).
@@ -191,7 +191,7 @@ def list_transactions(account, start_date, end_date, include_subaccounts=False) 
                 continue
  
             tx_date = transaction_date(tx)
-            if start_date <= tx_date <= end_date:
+            if (start_date <= tx_date) and (not filter_by_end_date or tx_date <= end_date):
                 seen_tx_guids.add(guid)
                 results.append(get_transaction_info(tx, acc))
  

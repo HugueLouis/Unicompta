@@ -3,7 +3,7 @@
 from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 from lib.git_utils import *
-from lib.ML import filtered_extract
+from lib.matching import *
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
@@ -319,17 +319,17 @@ class App(BASE):
             width=width, insertbackground=BLUE,
         )
 
-    # __ Other pages ___________________________________________________________
+    #! __ Other pages ___________________________________________________________
     def _build_matching_tab(self):
-        self.match_pdf_path = None
+        self.match_csv_path = None
         tab = tk.Frame(self.nb, bg=WHITE, padx=20, pady=20)
         self.nb.add(tab, text="second writtings")
 
         top = tk.Frame(tab, bg=WHITE)
         top.pack(fill="x")
-        self._btn(top, "Choose post fincance pdf to compare against  Gnucash Actif : Banque principal", self._pick_match_pdf).pack(side="left")
-        self.match_pdf_var = tk.StringVar(value="No pdf")
-        tk.Label(top, textvariable=self.match_pdf_var, bg=WHITE, fg=GRAY,
+        self._btn(top, "Choose post fincance csv to compare against  Gnucash Actif : Banque principal", self._pick_match_csv).pack(side="left")
+        self.match_csv_var = tk.StringVar(value="No csv")
+        tk.Label(top, textvariable=self.match_csv_var, bg=WHITE, fg=GRAY,
                  font=("Helvetica", 11)).pack(side="left", padx=8)
 
         self._btn(top, "Start merging", self._run_merge_post_gnu, bg=RED).pack(side="right")
@@ -349,33 +349,38 @@ class App(BASE):
         lb.pack(fill="both", expand=True)
         return lb
 
-    def _pick_match_pdf(self):
+    def _pick_match_csv(self):
         path = filedialog.askopenfilename(
             initialdir=self.pdf_default_folder_var.get(),
-            filetypes=[("PDF", "*.pdf")])
+            filetypes=[("CSV", "*.csv")])
         if path:
-            self.match_pdf_path = path
-            self.match_pdf_var.set(os.path.basename(path))
+            self.match_csv_path = path
+            self.match_csv_var.set(os.path.basename(path))
 
     def _run_matching(self):
-        if not self.match_pdf_path:
-            messagebox.showwarning("Attention", "First choose a pdf in postfinance")
+        if not self.match_csv_path:
+            messagebox.showwarning("Attention", "First choose a csv in postfinance")
             return
-        # TODO: plug in your existing algo here, e.g.
-        # self.missing, self.extra = your_matching_function(self.match_pdf_path, self.book, self.act_banque_actif_act)
-        # 
-        # self.missing_listbox.delete(0, "end")
-        # self.extra_listbox.delete(0, "end")
-        # for d in self.missing: self.missing_listbox.insert("end", d)
-        # for d in self.extra: self.extra_listbox.insert("end", d)
+
+        result = match_csv_to_gnucash(self.match_csv_path, self.book, self.act_banque_actif_act, date_to_iso("31.08.2026"),  date_to_iso("31.08.2099")) #TODO put input for dates
+        self.mapped = result["mapped"]      # keep full data for the merge step
+        self.missing = result["missing"]
+        self.extra = result["extra"]
+
+        self.missing_listbox.delete(0, "end")
+        self.extra_listbox.delete(0, "end")
+        for b in self.missing:
+            self.missing_listbox.insert("end", format_bank_row(b))
+        for g in self.extra:
+            self.extra_listbox.insert("end", format_gnc_row(g))
 
     def _run_merge_post_gnu(self):
-            if not self.match_pdf_path:
-                messagebox.showwarning("Attention", "First choose a pdf in postfinance")
-                return
-            # TODO: plug in your existing algo here, e.g.
-            # call merging on self.missing and self.extra to apply to the gnucash
-            self._run_matching()
+        if not self.match_csv_path:
+            messagebox.showwarning("Attention", "First choose a csv from postfinance")
+            return
+        # Next step: create GnuCash transactions for self.missing via add_transaction(...)
+        # The counterpart account (expense/income) has to be chosen per row, e.g. by description rules.
+        self._run_matching()
 
     # ── Events ────────────────────────────────────────────────────────────────
 
