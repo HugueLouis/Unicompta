@@ -612,7 +612,7 @@ class App(BASE):
             return
         git_add()
         git_commit("\"Auto push " + str(len(self.transactions)) + " movements\"")
-        if not check_git_clean(git_pull()) :
+        if not check_git_clean(git_status()) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
             print(pull_check)
             return

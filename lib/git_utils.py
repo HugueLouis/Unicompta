@@ -14,12 +14,11 @@ def run_command(*command_str):
         capture_output=True,
         text=True
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"bash error: {result.stderr}")
-    return result.stdout.strip()
+    parts = [result.stdout.strip(), result.stderr.strip()]    
+    return "\n".join(p for p in parts if p)
 
 def check_git_up_to_date(output):
-    return (("Your branch is up-to-date" in output) or ("Already up-to-date" in output))
+    return (("up-to-date" in output) or ("up to date" in output))
         
 def check_git_clean(output):
     return ("working tree clean"in output)
