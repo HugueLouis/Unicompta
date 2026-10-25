@@ -39,8 +39,6 @@ GREEN  = "#16A34A"
 ORANGE  = "#D48217"
 RED  = "#BB3935"
 
-def dprint(str):
-    if DEBUG : print(str)
 
 def get_default_pdf_folder():
     with open(CONFIG_FILE) as f :
@@ -153,7 +151,6 @@ class App(BASE):
 
     def _on_pole_change(self,*_):
         # update pole_charge_types scrolling
-        dprint(lambda: f"from {self.act_charges.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
         if not self.pole_var.get() == "":
             self.charge_pole_act = find_account_including(self.act_charges,"(" + pole_code(self.pole_var.get())+")")
             pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
@@ -533,7 +530,6 @@ class App(BASE):
 
     def _suppose_worker(self,path):
         from lib.ML import filtered_extract
-        dprint(lambda:f"[suppose_worker] started for '{path}'")
         def extract_all_text(path) -> str:
             """Return concatenated text from every page of the loaded PDF."""
             if path :
@@ -849,7 +845,6 @@ class App(BASE):
 
     def _pick_folder(self):
         folder = filedialog.askdirectory(initialdir=self.pdf_default_folder_var.get())
-        dprint(lambda:f"[pick_folder] selected = '{folder}'")
         if folder:
             self.pdf_default_folder_var.set(folder)
             set_default_pdf_folder(folder)
@@ -861,11 +856,8 @@ class App(BASE):
     def _refresh_pdf_list(self):
         self.pdf_listbox.delete(0, "end")
         folder = self.pdf_default_folder_var.get()
-        dprint(lambda:f"[refresh] folder = '{folder}'")
-        dprint(lambda:f"[refresh] is_dir = {os.path.isdir(folder)}")
         if os.path.isdir(folder):
             pdfs = sorted(Path(folder).glob("*.pdf"))
-            dprint(lambda:f"[refresh] found {len(pdfs)} PDFs: {[p.name for p in pdfs]}")
             for p in pdfs:
                 self.pdf_listbox.insert("end", p.name)
                 full_path = os.path.join(folder, p.name)
