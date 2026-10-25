@@ -133,12 +133,32 @@ def match_csv_to_gnucash(csv_path, book, account,  start_date, end_date):#TODO d
 
 # ---------------------------------------------------------------- display helpers
 
+DATE_W = 10    # e.g. 2024-01-15
+AMOUNT_W = 8  # e.g. -1234.56
+DESC_W = 57
+
+def _fit(text, width):
+    """Flatten to one line and truncate with '...' so the field never exceeds width."""
+    text = "" if text is None else str(text)
+    text = " ".join(text.split())  # remove newlines and repeated whitespace
+    if len(text) > width:
+        text = text[:width - 3] + "..."
+    return text
+
+
+def _format_row(date, amount, description):
+    d = _fit(date, DATE_W).ljust(DATE_W)
+    a = _fit(f"{amount:.2f}", AMOUNT_W).ljust(AMOUNT_W)
+    desc = _fit(description, DESC_W).ljust(DESC_W)
+    return f"{d}| {a} | {desc}"
+
+
 def format_bank_row(b):
-    return f"{b['date']} | {b['amount']:>10.2f} | {b['description']}"
+    return _format_row(b["date"], b["amount"], b["description"])
 
 
 def format_gnc_row(g):
-    return f"{g['date']} | {g['amount']:>10.2f} | {g['description']}"
+    return _format_row(g["date"], g["amount"], g["description"])
 
 
 def your_matching_function(csv_path, book, account,start_date, end_date):

@@ -374,7 +374,7 @@ class App(BASE):
         tk.Label(header, text=title, font=("Helvetica", 13, "bold"),
                  bg=WHITE, fg=TEXT).pack(side="left", anchor="w")
 
-        lb = tk.Listbox(col, font=("Helvetica", 11), relief="solid", bd=1)
+        lb = tk.Listbox(col, font=("Courier", 11), relief="solid", bd=1)
         lb.pack(fill="both", expand=True)
         return lb, header
 
@@ -481,7 +481,7 @@ class App(BASE):
         self.session.save()
         self._run_matching()
 
-    # ── Events ────────────────────────────────────────────────────────────────
+    #! ── Events ────────────────────────────────────────────────────────────────
 
     def _pick(self, _=None):
         path = filedialog.askopenfilename(
