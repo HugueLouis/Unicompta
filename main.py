@@ -108,12 +108,12 @@ class App(BASE):
         self.session = gnucash.Session("xml://"+ GNUCASH_FILE)
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.book = self.session.book
-        self.root_act = self.book.get_root_account()
-        self.act_imbalance_act = find_account_including(self.root_act,ACT_IMBALANCE)
-        self.act_payable_act = find_account_including(self.root_act,ACT_PAYABLE_ACT_NAME)
-        self.act_receivable_act = find_account_including(self.root_act,ACT_RECEIVABLE_ACT_NAME) 
-        self.act_banque_actif_act = find_account_including(self.root_act,ACT_BANQUE_ACTIF)
-        self.charges_act = find_account_including(self.root_act,CHARGES_ACT_NAME)
+        self.act_root = self.book.get_root_account()
+        self.act_imbalance = find_account_including(self.act_root,ACT_IMBALANCE)
+        self.act_payable = find_account_including(self.act_root,ACT_PAYABLE_ACT_NAME)
+        self.act_receivable = find_account_including(self.act_root,ACT_RECEIVABLE_ACT_NAME) 
+        self.act_banque_actif = find_account_including(self.act_root,ACT_BANQUE_ACTIF)
+        self.act_charges = find_account_including(self.act_root,CHARGES_ACT_NAME)
         self.supposed_answers = {}
         self.transactions = []
         self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
@@ -143,9 +143,9 @@ class App(BASE):
 
     def _on_pole_change(self,*_):
         # update pole_charge_types scrolling
-        dprint(lambda: f"from {self.charges_act.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
+        dprint(lambda: f"from {self.act_charges.GetName()} searching for : {"(" + pole_code(self.pole_var.get())+")"}")
         if not self.pole_var.get() == "":
-            self.charge_pole_act = find_account_including(self.charges_act,"(" + pole_code(self.pole_var.get())+")")
+            self.charge_pole_act = find_account_including(self.act_charges,"(" + pole_code(self.pole_var.get())+")")
             pole_charge_types_str = list_all_accounts_accumulate(self.charge_pole_act)
             self.pole_charge_type_var_combo["values"] = pole_charge_types_str
         self.pole_charge_type_var_str.set("")
@@ -392,7 +392,7 @@ class App(BASE):
             messagebox.showwarning("Attention", "First choose a csv in postfinance")
             return
 
-        result = match_csv_to_gnucash(self.match_csv_path, self.book, self.act_banque_actif_act, date_to_iso("31.08.2026"),  date_to_iso("31.08.2099")) #TODO put input for dates
+        result = match_csv_to_gnucash(self.match_csv_path, self.book, self.act_banque_actif, date_to_iso("31.08.2026"),  date_to_iso("31.08.2099")) #TODO put input for dates
         self.mapped = result["mapped"]      # keep full data for the merge step
         self.missing = result["missing"]
         self.extra = result["extra"]
@@ -434,7 +434,7 @@ class App(BASE):
         fixed = 0
         for m in self.missing:
             if m["amount"]>0:                    
-                add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
+                add_transaction(self.book,self.act_imbalance,self.act_banque_actif,m["amount"],m["description"],m["date"])
                 fixed += 1
         self.session.save()
         self._run_matching()
@@ -465,7 +465,7 @@ class App(BASE):
             messagebox.showwarning("Attention", "Select a matched line first")
             return
         m = self.missing[sel[0]]               
-        add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
+        add_transaction(self.book,self.act_imbalance,self.act_banque_actif,m["amount"],m["description"],m["date"])
         self.session.save()
         self._run_matching()
 
@@ -611,16 +611,16 @@ class App(BASE):
         check_decompress_gnucash_file()
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
-        tx = add_transaction(self.book,self.act_payable_act,type_pole_charge_act,amount,description,d)
+        tx = add_transaction(self.book,self.act_payable,type_pole_charge_act,amount,description,d)
         self.transactions.append((description, tx, dest, google_sheet_line, source ,new_source_path))
         self.tx_listbox.insert("end", description)
         if DEBUG : 
             dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
-            dprint(lambda:"account receivable on submit : " +self.act_banque_actif_act.GetName())
+            dprint(lambda:"account receivable on submit : " +self.act_banque_actif.GetName())
         if self.second_compta_var.get() :
             tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
             print("Inserted "+ tx_2_desc)
-            tx_2 = add_transaction(self.book,self.act_banque_actif_act,self.act_payable_act,amount,description,d + timedelta(365*YEAR_BUMP_S_C))
+            tx_2 = add_transaction(self.book,self.act_banque_actif,self.act_payable,amount,description,d + timedelta(365*YEAR_BUMP_S_C))
             self.transactions.append((tx_2_desc, tx_2, None, None, None, None)) # Don't add filename because the file is already set on the first
             self.tx_listbox.insert("end", tx_2_desc)
 
