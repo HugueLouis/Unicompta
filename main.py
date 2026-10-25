@@ -152,8 +152,6 @@ class App(BASE):
         try:
             d = date_to_iso(self.date_var.get())
         except ValueError:
-            print("date is wrongfully formated")
-            print(self.date_var.get())
             return
         # update poles scrolling
         poles = get_poles(d, self.cat_var.get())
@@ -203,8 +201,6 @@ class App(BASE):
                 font=("Helvetica", 11), fg=GRAY, bg=WHITE).pack(side="left", padx=8)
         self._btn(folder_row, "Choisir folder des REMB a traiter", self._pick_folder).pack(side="left")
 
-
-
         # -- PDF list --
         pdfs_headers = tk.Frame(outer, bg=WHITE)
         pdfs_headers.pack(fill="x")
@@ -221,7 +217,6 @@ class App(BASE):
         self.pdf_listbox.pack(fill="x", pady=(0, 10))
         self.pdf_listbox.bind("<<ListboxSelect>>", self._on_pdf_select)
         self._refresh_pdf_list()
-
 
         # --- Drag and drop zone
         self.drop = tk.Label(
@@ -334,7 +329,6 @@ class App(BASE):
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
         self._build_transaction_panel(paned)
-
 
         self._build_matching_tab()
 
@@ -461,7 +455,7 @@ class App(BASE):
             messagebox.showwarning("Attention", "Select a matched line first")
             return
         m = self.mapped[sel[0]]
-        if merge_mapped_transaction(m):
+        if not merge_mapped_transaction(m):
             messagebox.showinfo("Failed", "Either it was already true or it failed")
         else :
             messagebox.showinfo("Success", f"fixed : {m['bank']['description']}")
@@ -516,13 +510,16 @@ class App(BASE):
             self.date_var.set(ans[1])
             self.desc_var.set(ans[2])
             self.amount_var.set(ans[3])
-            try :
-                for c in CATEGORIES:
-                    for p in get_poles( date_to_iso(self.date_var.get()), c):
-                        if ans[4] != None and ans[4] in p : self.pole_var.set(p) and self.cat_var.set(c)
-            except : 
-                self.pole_var.set("")
-                self.cat_var.set("")
+            if ans[4] != None :
+                try :
+                    for c in CATEGORIES:
+                        for p in get_poles( date_to_iso(self.date_var.get()), c):
+                            if ans[4] in p : 
+                                self.pole_var.set(p)
+                                self.cat_var.set(c)
+                except : 
+                    self.pole_var.set("")
+                    self.cat_var.set("")
         self.pdf_path.set(path)
         name = os.path.basename(path)
         self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
@@ -532,19 +529,14 @@ class App(BASE):
     def _suppose_worker(self,path):
         from lib.ML import filtered_extract
         def extract_all_text(path) -> str:
-            """Return concatenated text from every page of the loaded PDF."""
-            if path :
-                _pdf_doc = fitz.open(path)
-            else : 
-                _pdf_doc = self._pdf_doc
-            return "" if not _pdf_doc else "\n".join(
-                _pdf_doc[i].get_text("text")
-                for i in range(len(_pdf_doc))
+            """Return concatenated text from every page of the PDF at path."""
+            with fitz.open(path) as doc:
+                return "\n".join(page.get_text("text") for page in doc)
+        poles_possibles = "poles : {"
+        poles_possibles += ", ".join(
+            f'"{p}"' for c in CATEGORIES for p in get_poles(date.today(), c)
         )
-        poles_possibles = "poles : {\""
-        for c in CATEGORIES:
-            poles_possibles += ("\", \"").join(get_poles( date.today(), c)) + "\""
-        full_text = poles_possibles+ "}\n\n" +  extract_all_text(path)
+        full_text = poles_possibles+ "}\n" +  extract_all_text(path)
         results = filtered_extract(full_text)
         self.after(0, lambda: self._update_ui(results,path))
 
@@ -630,7 +622,7 @@ class App(BASE):
     def _copy_t_clip(self):
         s = ""
         for e in self.transactions :
-            if e.tx :
+            if e.sheet_line :
                 s += e.tx+ "\n"
         copykitten.copy(s)
         return s
@@ -656,14 +648,15 @@ class App(BASE):
         self.session.save()
         self.session.end()
         clean_gnucash_folder()
-        pull_check = git_pull()
-        if not check_git_up_to_date(pull_check) :
+        check = git_pull()
+        if not check_git_up_to_date(check) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
-            print(pull_check)
+            print(check)
             return
         git_add()
         git_commit("\"Auto push " + str(len(self.transactions)) + " movements\"")
-        if not check_git_clean(git_status()) :
+        check = git_status()
+        if not check_git_clean(check) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
             print(pull_check)
             return
