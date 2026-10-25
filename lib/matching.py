@@ -127,7 +127,11 @@ def match_csv_to_gnucash(csv_path, book, account,  start_date, end_date):#TODO d
 
     missing = [b for i, b in enumerate(bank_rows) if i not in used_bank and b["date"]>start_date]
     extra = [g for j, g in enumerate(gnc_txs) if j not in used_gnc]
-    mapped.sort(key=lambda m: m["bank"]["date"])
+    
+    missing.sort(key=lambda m: m["date"], reverse=True)
+    extra.sort(key=lambda m: m["date"], reverse=True)
+    mapped.sort(key=lambda m: m["bank"]["date"], reverse=True)
+
     return {"mapped": mapped, "missing": missing, "extra": extra}
 
 
