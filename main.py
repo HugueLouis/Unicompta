@@ -35,6 +35,7 @@ TEXT   = "#1E293B"
 GRAY   = "#64748B"
 WHITE  = "#FFFFFF"
 GREEN  = "#16A34A"
+ORANGE  = "#D48217"
 RED  = "#BB3935"
 
 def dprint(str):
@@ -89,6 +90,18 @@ def date_to_iso(typed_date) -> date :
     if len(date_split[0])!=4 :
         date_split = reversed(date_split) 
     return date.fromisoformat("-".join(date_split))
+
+
+def merge_mapped_transaction(m) -> bool:
+    if m["day_diff"] == 0:
+        return False
+    d = m["bank"]["date"]
+    tx = m["gnucash"]["transaction"]
+    tx.BeginEdit()
+    tx.SetDate(d.day, d.month, d.year)
+    tx.CommitEdit()
+    return True
+        
 class App(BASE):
     def __init__(self):
         super().__init__()
@@ -334,28 +347,36 @@ class App(BASE):
         tk.Label(top, textvariable=self.match_csv_var, bg=WHITE, fg=GRAY,
                  font=("Helvetica", 11)).pack(side="left", padx=8)
 
-        self._btn(top, "Start merging", self._run_merge_post_gnu, bg=RED).pack(side="right")
-        self._btn(top, "Add credits to imbalance", self._run_submit_credits, bg=RED).pack(side="right")
+        self._btn(top, "Fix all dates", self._run_merge_post_gnu, bg=RED).pack(side="right")
+        self._btn(top, "Add credits : imbalance -> bank", self._run_insert_credits, bg=RED).pack(side="right")
         self._btn(top, "Start comparison", self._run_matching).pack(side="right")
-
 
         cols = tk.Frame(tab, bg=WHITE)
         cols.pack(fill="both", expand=True, pady=(12, 0))
-        self.missing_listbox = self._listbox_column(cols, "Missing in GnuCash")
-        self.extra_listbox = self._listbox_column(cols, "Additionnal in GnuCash")
+        
+        self.missing_listbox, col_missing = self._listbox_column(cols, "Missing in GnuCash")
+        self._btn(col_missing, "Insert transaction : imbalance -> bank", self._run_insert_selected, bg=ORANGE).pack(side="right")
+
+        self.extra_listbox, col_extra = self._listbox_column(cols, "Additionnal in GnuCash")
+        self._btn(col_extra, "Delete selected transaction", self._run_delete_selected, bg=ORANGE).pack(side="right")
 
         matched_frame = tk.Frame(tab, bg=WHITE)
         matched_frame.pack(fill="both", expand=True, pady=(12, 0))
-        self.matched_listbox = self._listbox_column(matched_frame, "Matched (bank ⇄ GnuCash)")
+        self.matched_listbox, col_matched = self._listbox_column(matched_frame, "Matched (bank ⇄ GnuCash)")
+        self._btn(col_matched, "Fix selected date", self._run_merge_selected, bg=ORANGE).pack(side="right")
 
     def _listbox_column(self, parent, title):
         col = tk.Frame(parent, bg=WHITE)
         col.pack(side="left", fill="both", expand=True, padx=6)
-        tk.Label(col, text=title, font=("Helvetica", 13, "bold"),
-                 bg=WHITE, fg=TEXT).pack(anchor="w")
+
+        header = tk.Frame(col, bg=WHITE)
+        header.pack(fill="x")
+        tk.Label(header, text=title, font=("Helvetica", 13, "bold"),
+                 bg=WHITE, fg=TEXT).pack(side="left", anchor="w")
+
         lb = tk.Listbox(col, font=("Helvetica", 11), relief="solid", bd=1)
         lb.pack(fill="both", expand=True)
-        return lb
+        return lb, header
 
     def _pick_match_csv(self):
         path = filedialog.askopenfilename(
@@ -393,43 +414,72 @@ class App(BASE):
             self.matched_listbox.itemconfig(k, bg=bg, fg="#14532D" if m["day_diff"] == 0 else "#78350F")
 
     def _run_merge_post_gnu(self):
-        if not self.match_csv_path:
-            messagebox.showwarning("Attention", "First choose a csv from postfinance")
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
             return
-        if not self.mapped:
-                    messagebox.showwarning("Attention", "First run the matching algorithm")
-                    return
         fixed = 0
         for m in self.mapped:
-            if m["day_diff"] == 0:
-                continue
-            d = m["bank"]["date"]
-            tx = m["gnucash"]["transaction"]
-            tx.BeginEdit()
-            tx.SetDate(d.day, d.month, d.year)
-            tx.CommitEdit()
-            fixed += 1
+            if merge_mapped_transaction(m) : fixed+=1
         self.session.save()
         self._run_matching()
         messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
 
-    def _run_submit_credits(self):
-            # This create the transactions at the right :
-            #  {date, amount, description, banque principal account} but from the WRONG account
-            if not self.match_csv_path:
-                messagebox.showwarning("Attention", "First choose a csv from postfinance")
-                return
-            if not self.mapped:
-                                messagebox.showwarning("Attention", "First run the matching algorithm")
-                                return
-            fixed = 0
-            for m in self.missing:
-                if m["amount"]>0:                    
-                    add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
-                    fixed += 1
-            self.session.save()
-            self._run_matching()
-            messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
+    def _run_insert_credits(self):
+        # This create the transactions at the right :
+        #  {date, amount, description, banque principal account} but from the WRONG account
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
+            return
+        fixed = 0
+        for m in self.missing:
+            if m["amount"]>0:                    
+                add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
+                fixed += 1
+        self.session.save()
+        self._run_matching()
+        messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
+
+    def _run_merge_selected(self):
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
+            return
+        sel = self.matched_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Attention", "Select a matched line first")
+            return
+        m = self.mapped[sel[0]]
+        if merge_mapped_transaction(m):
+            messagebox.showinfo("Failed", "Either it was already true or it failed")
+        else :
+            messagebox.showinfo("Success", f"fixed : {m['bank']['description']}")
+        self.session.save()
+        self._run_matching()    
+
+    def _run_insert_selected(self):
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
+            return
+        sel = self.missing_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Attention", "Select a matched line first")
+            return
+        m = self.missing[sel[0]]               
+        add_transaction(self.book,self.act_imbalance_act,self.act_banque_actif_act,m["amount"],m["description"],m["date"])
+        self.session.save()
+        self._run_matching()
+
+    def _run_delete_selected(self):
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
+            return
+        sel = self.extra_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Attention", "Select a matched line first")
+            return
+        m = self.extra[sel[0]]
+        delete_transaction(m['transaction'])
+        self.session.save()
+        self._run_matching()
 
     # ── Events ────────────────────────────────────────────────────────────────
 
