@@ -13,6 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 from pdf2image import convert_from_path
 from PIL import ImageTk
+from dataclasses import dataclass
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -101,7 +102,16 @@ def merge_mapped_transaction(m) -> bool:
     tx.SetDate(d.day, d.month, d.year)
     tx.CommitEdit()
     return True
-        
+
+@dataclass
+class Entry:
+    description: str
+    tx: object
+    pdf_dest: str | None = None
+    sheet_line: str | None = None
+    old_source: str | None = None
+    new_source: str | None = None    
+
 class App(BASE):
     def __init__(self):
         super().__init__()
@@ -612,16 +622,13 @@ class App(BASE):
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable,type_pole_charge_act,amount,description,d)
-        self.transactions.append((description, tx, dest, google_sheet_line, source ,new_source_path))
+        self.transactions.append(Entry(description, tx, dest, google_sheet_line, source ,new_source_path))
         self.tx_listbox.insert("end", description)
-        if DEBUG : 
-            dprint(lambda:"second compta var on submit : "+ str(self.second_compta_var.get()))
-            dprint(lambda:"account receivable on submit : " +self.act_banque_actif.GetName())
         if self.second_compta_var.get() :
             tx_2_desc =  PREFIX_DESC_SECOND_COMPTA + description
             print("Inserted "+ tx_2_desc)
             tx_2 = add_transaction(self.book,self.act_banque_actif,self.act_payable,amount,description,d + timedelta(365*YEAR_BUMP_S_C))
-            self.transactions.append((tx_2_desc, tx_2, None, None, None, None)) # Don't add filename because the file is already set on the first
+            self.transactions.append(Entry(tx_2_desc, tx_2, None, None, None, None)) # Don't add filename because the file is already set on the first
             self.tx_listbox.insert("end", tx_2_desc)
 
         self.session.save()
@@ -629,9 +636,9 @@ class App(BASE):
 
     def _copy_t_clip(self):
         s = ""
-        for _, _, _, t,_ ,_ in self.transactions :
-            if t :
-                s += t+ "\n"
+        for e in self.transactions :
+            if e.tx :
+                s += e.tx+ "\n"
         copykitten.copy(s)
         return s
 
@@ -817,18 +824,16 @@ class App(BASE):
                 bg="#DC2626").pack(fill="x", pady=(8, 0))
 
     def _delete_tx_i(self, i):
-        desc, tx, filepath, _, old_source, source_path = self.transactions[i]
-        delete_transaction(tx=tx)
-        if filepath : 
-            os.remove(filepath)
-            if len(self.transactions)>= i+1: 
-                next_desc, _, _, _, _ , _  = self.transactions[i+1]
-                if desc in next_desc : #if the next transaction is the next compta
+        entry = self.transactions[i]
+        delete_transaction(tx=entry.tx)
+        if entry.pdf_dest : 
+            os.remove(entry.pdf_dest)
+            if len(self.transactions)> i+1:  #if the next transaction is the next compta
+                if entry.description in self.transactions[i+1].description :
                     self._delete_tx_i(i+1)
-        if old_source and source_path : # that way we undo the naming on the original file
-            os.rename(source_path ,old_source)
+        if entry.old_source and entry.new_source : # that way we undo the naming on the original file
+            os.rename(entry.new_source ,entry.old_source)
 
-        dprint(lambda:"Deleted "+ desc)
         self.transactions.pop(i)
         self.tx_listbox.delete(i)
 
