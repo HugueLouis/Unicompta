@@ -83,12 +83,13 @@ def check_decompress_gnucash_file():
                 shutil.copyfileobj(f_in, f_out)
                 os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
 
-def date_to_iso(typed_date) -> date :
+def date_to_iso(text) -> date :
     # adaptive date selection (- / .) (EU standard or US) """
-    date_split = typed_date.strip().replace("/","-").replace(".","-").replace(" ","-").split("-")
-    if len(date_split[0])!=4 :
-        date_split = reversed(date_split) 
-    return date.fromisoformat("-".join(date_split))
+    """Accept YYYY-MM-DD, DD-MM-YYYY, or the same with / . or space separators."""
+    parts = re.split(r"[-/. ]", text.strip())
+    if len(parts[0]) != 4:
+        parts.reverse()
+    return date.fromisoformat("-".join(parts))
 
 
 def merge_mapped_transaction(m) -> bool:
@@ -566,7 +567,6 @@ class App(BASE):
 
     #! modifies the gnucash file
     def _submit(self):
-        date_split = None
         if not self.pdf_path.get():
             messagebox.showerror("Erreur", "Veuillez sélectionner un fichier PDF.")
             return
@@ -597,12 +597,9 @@ class App(BASE):
         description = filename[:-len(".pdf")] + " " + self.name_var.get() + " " + self.desc_var.get()
         source = self.pdf_path.get()
         dest     = os.path.join(folder, filename)
-        date_split = self.date_var.get().replace("-","/").replace(".","/").split("/")
-        if len(date_split[0])==4 :
-            date_split = reversed(date_split) 
         # prints in the google sheet format (filename name date amount) with tabs between each, newline to change line
-        google_sheet_line = filename[:-len(".pdf")] + "\t" + self.name_var.get() + "\t"
-        google_sheet_line += "/".join(date_split) + "\t" + amount_match.group(0)
+        google_sheet_line = (filename[:-len(".pdf")] + "\t" + self.name_var.get() + "\t"
+                     + d.strftime("%d/%m/%Y") + "\t" + amount_match.group(0))
 
         # copy and rename to the right folder
         os.makedirs(folder, exist_ok=True)
