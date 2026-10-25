@@ -14,6 +14,7 @@ from pathlib import Path
 from pdf2image import convert_from_path
 from PIL import ImageTk
 from dataclasses import dataclass
+import functools
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -101,6 +102,15 @@ def merge_mapped_transaction(m) -> bool:
     tx.SetDate(d.day, d.month, d.year)
     tx.CommitEdit()
     return True
+
+def needs_matching(method):
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if not self.match_csv_path or not getattr(self, "mapped", None):
+            messagebox.showwarning("Attention", "First run the matching algorithm")
+            return
+        return method(self, *args, **kwargs)
+    return wrapper
 
 @dataclass
 class Entry:
@@ -422,10 +432,8 @@ class App(BASE):
             bg = "#DCFCE7" if m["day_diff"] == 0 else "#FEF3C7"
             self.matched_listbox.itemconfig(k, bg=bg, fg="#14532D" if m["day_diff"] == 0 else "#78350F")
 
+    @needs_matching
     def _run_merge_post_gnu(self):
-        if not self.match_csv_path or not getattr(self, "mapped", None):
-            messagebox.showwarning("Attention", "First run the matching algorithm")
-            return
         fixed = 0
         for m in self.mapped:
             if merge_mapped_transaction(m) : fixed+=1
@@ -433,12 +441,10 @@ class App(BASE):
         self._run_matching()
         messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
 
+    @needs_matching
     def _run_insert_credits(self):
         # This create the transactions at the right :
         #  {date, amount, description, banque principal account} but from the WRONG account
-        if not self.match_csv_path or not getattr(self, "mapped", None):
-            messagebox.showwarning("Attention", "First run the matching algorithm")
-            return
         fixed = 0
         for m in self.missing:
             if m["amount"]>0:                    
@@ -448,10 +454,8 @@ class App(BASE):
         self._run_matching()
         messagebox.showinfo("Succès", f"{fixed} date(s) corrigée(s).")
 
+    @needs_matching
     def _run_merge_selected(self):
-        if not self.match_csv_path or not getattr(self, "mapped", None):
-            messagebox.showwarning("Attention", "First run the matching algorithm")
-            return
         sel = self.matched_listbox.curselection()
         if not sel:
             messagebox.showwarning("Attention", "Select a matched line first")
@@ -464,10 +468,8 @@ class App(BASE):
         self.session.save()
         self._run_matching()    
 
+    @needs_matching
     def _run_insert_selected(self):
-        if not self.match_csv_path or not getattr(self, "mapped", None):
-            messagebox.showwarning("Attention", "First run the matching algorithm")
-            return
         sel = self.missing_listbox.curselection()
         if not sel:
             messagebox.showwarning("Attention", "Select a matched line first")
@@ -477,10 +479,8 @@ class App(BASE):
         self.session.save()
         self._run_matching()
 
+    @needs_matching
     def _run_delete_selected(self):
-        if not self.match_csv_path or not getattr(self, "mapped", None):
-            messagebox.showwarning("Attention", "First run the matching algorithm")
-            return
         sel = self.extra_listbox.curselection()
         if not sel:
             messagebox.showwarning("Attention", "Select a matched line first")
