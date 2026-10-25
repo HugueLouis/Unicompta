@@ -349,7 +349,7 @@ class App(BASE):
 
         self._btn(top, "Fix all dates", self._run_merge_post_gnu, bg=RED).pack(side="right")
         self._btn(top, "Add credits : imbalance -> bank", self._run_insert_credits, bg=RED).pack(side="right")
-        self._btn(top, "Start comparison", self._run_matching).pack(side="right")
+        self._btn(top, "Compare csv:gnucash", self._run_matching).pack(side="right")
 
         cols = tk.Frame(tab, bg=WHITE)
         cols.pack(fill="both", expand=True, pady=(12, 0))
@@ -385,6 +385,7 @@ class App(BASE):
         if path:
             self.match_csv_path = path
             self.match_csv_var.set(os.path.basename(path))
+            self._run_matching()
 
     def _run_matching(self):
         if not self.match_csv_path:
