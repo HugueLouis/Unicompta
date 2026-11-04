@@ -623,7 +623,7 @@ class App(BASE):
         s = ""
         for e in self.transactions :
             if e.sheet_line :
-                s += e.tx+ "\n"
+                s += e.sheet_line+ "\n"
         copykitten.copy(s)
         return s
 
