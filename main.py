@@ -662,6 +662,9 @@ class App(BASE):
         exit()
 
     def _commit_push_git(self):
+        if not GIT_AVAILABLE:
+            messagebox.showerror("Erreur", "Git n'est pas installé sur cet ordinateur.")
+            return
         self.session.save()
         self.session.end()
         clean_gnucash_folder()
@@ -675,7 +678,7 @@ class App(BASE):
         check = git_status()
         if not check_git_clean(check) :
             messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
-            print(pull_check)
+            print(check)
             return
         print(git_push())
         s = self._copy_t_clip()
@@ -683,6 +686,9 @@ class App(BASE):
         
     #! modifies the gnucash file
     def _reset_hard_git(self):
+        if not GIT_AVAILABLE:
+            messagebox.showerror("Erreur", "Git n'est pas installé sur cet ordinateur.")
+            return
         git_fetch()
         git_add()
         if len(self.transactions)>0 : check_decompress_gnucash_file()
@@ -892,15 +898,15 @@ if __name__ == "__main__":
         app = App()
         # define the terminal that we use for git
         git_set_terminal_dir(BASE_DIR)
-        # start git on the side
-        git_pull()
-        status_output = git_status()
-        if not check_git_up_to_date(status_output) :
-            print("There are unpushed commits or conflicts please fix the differences on git :")
-            print(status_output)
-            exit()
-        if not check_git_clean(status_output) :
-            messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
+        # start git on the side (skipped if git is not installed)
+        if GIT_AVAILABLE:
+            git_pull()
+            status_output = git_status()
+            if not check_git_up_to_date(status_output) :
+                print(status_output)
+                print("There are unpushed commits or conflicts please fix the differences on git ")
+            if not check_git_clean(status_output) :
+                messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
 
         # then app becomes interactive
         app.mainloop()
