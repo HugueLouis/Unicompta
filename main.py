@@ -17,12 +17,8 @@ from dataclasses import dataclass
 import functools
 
 POPPLER_BIN = os.path.join(sys._MEIPASS, "poppler", "bin") if getattr(sys, "frozen", False) else None
-try:
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-    BASE = TkinterDnD.Tk
-except ImportError:
-    BASE = tk.Tk
-    DND_FILES = None
+
+BASE = tk.Tk
 
 DEFAULT_SECOND_COMPTA = True
 PREFIX_DESC_SECOND_COMPTA = "n*2 "
@@ -219,21 +215,6 @@ class App(BASE):
         self.pdf_listbox.bind("<<ListboxSelect>>", self._on_pdf_select)
         self._refresh_pdf_list()
 
-        # --- Drag and drop zone
-        self.drop = tk.Label(
-            outer,
-            text="drag and drop PDF here\n\n Or click to choose pdf",
-            font=("Helvetica", 11), fg=GRAY, bg=LIGHT,
-            cursor="hand2", padx=20, pady=10, width=80, height=2,
-        )
-        self.drop.pack()
-        self.drop.bind("<Button-1>", self._pick)
-        self.drop.bind("<Enter>", lambda e: self.drop.config(bg="#DBEAFE"))
-        self.drop.bind("<Leave>", lambda e: self.drop.config(bg=LIGHT))
-
-        if DND_FILES:
-            self.drop.drop_target_register(DND_FILES)
-            self.drop.dnd_bind("<<Drop>>", self._on_drop)
 
         # Title
         tk.Label(outer, text="Dépôt de fichier PDF", font=("Helvetica", 16, "bold"),
@@ -511,14 +492,6 @@ class App(BASE):
         if path:
             self._set_file(path)
 
-    def _on_drop(self, event):
-        # tkinterdnd2 wraps paths with spaces in braces
-        path = event.data.strip().strip("{}")
-        if path.lower().endswith(".pdf"):
-            self._set_file(path)
-        else:
-            messagebox.showerror("Erreur", "Veuillez déposer un fichier PDF.")
-
     def _set_file(self, path):
         self._reset()
         if path in self.supposed_answers and self.supposed_answers[path] != None :
@@ -538,8 +511,6 @@ class App(BASE):
                     self.pole_var.set("")
                     self.cat_var.set("")
         self.pdf_path.set(path)
-        name = os.path.basename(path)
-        self.drop.config(text=f"✅  {name}", fg=GREEN, bg="#F0FDF4")
         self._refresh_preview()
         self._load_pdf_preview(path)
 
@@ -648,8 +619,6 @@ class App(BASE):
         self.pdf_path.set("")
         self.name_var.set("")
         self.desc_var.set("")
-        self.drop.config(text="📄  Glisser-déposer un PDF ici\n\nou cliquer pour choisir",
-                         fg=GRAY, bg=LIGHT)
         self.amount_var.set("")
         self.date_var.set(date.today().isoformat())
 
