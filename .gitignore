@@ -1,2 +1,5 @@
 __pycache__/*
 lib/__pycache__/*
+config
+*.tar
+venv/
