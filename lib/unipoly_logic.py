@@ -8,9 +8,15 @@ APP_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 CONFIG_FILE = os.path.join(APP_DIR, "config")
 
 DEBUG = 0
-with open(CONFIG_FILE) as f : 
-    BASE_DIR = os.path.expanduser(f.readline().strip())
-    #if BASE_DIR[-1] != '/' : BASE_DIR += '/'
+try:
+    with open(CONFIG_FILE, encoding="utf-8") as f:
+        BASE_DIR = os.path.expanduser(f.readline().strip())
+except FileNotFoundError:
+    import tkinter as tk
+    from tkinter import messagebox
+    tk.Tk().withdraw()
+    messagebox.showerror("Unicompta", f"config file not found:\n{CONFIG_FILE}\n\nRun install.bat first.")
+    sys.exit(1)
 
 BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine
 BASE_GNUCASH_FOLDER = os.path.expanduser( BASE_DIR +"1 - Comptabilite/")

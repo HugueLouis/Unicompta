@@ -7,16 +7,13 @@ from lib.matching import *
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
-import gzip , shutil, magic, fitz, copykitten, sys
+import gzip, shutil, fitz, copykitten, sys
 from tkinter import ttk, filedialog, messagebox
+from PIL import Image, ImageTk
 from decimal import Decimal
 from pathlib import Path
-from pdf2image import convert_from_path
-from PIL import ImageTk
 from dataclasses import dataclass
 import functools
-
-POPPLER_BIN = os.path.join(sys._MEIPASS, "poppler", "bin") if getattr(sys, "frozen", False) else None
 
 BASE = tk.Tk
 
@@ -38,25 +35,30 @@ ORANGE  = "#D48217"
 RED  = "#BB3935"
 
 
+def render_pdf(path, dpi=120):
+    with fitz.open(path) as doc:
+        pixmaps = [pg.get_pixmap(dpi=dpi) for pg in doc]
+    return [Image.frombytes("RGB", (p.width, p.height), p.samples) for p in pixmaps]
+
 def get_default_pdf_folder():
-    with open(CONFIG_FILE) as f :
+    with open(CONFIG_FILE, encoding="utf-8") as f :
         lines = f.readlines()
     if len(lines)>=2 :
         folder = os.path.expanduser(lines[1].strip())
     else :
         folder = "."
-    if folder[-1] != '/' : folder += '/'
+    if not folder.endswith(("/", "\\")): folder += "/"
     return folder
 
 def set_default_pdf_folder(folder: str):
     folder = os.path.expanduser(folder)
-    with open(CONFIG_FILE, "r") as f:
+    with open(CONFIG_FILE, "r",encoding="utf-8") as f:
         lines = f.readlines()
     while len(lines) < 2:
         lines.append("\n")
     lines[0] = BASE_DIR + "\n"
     lines[1] = folder + "\n"
-    with open(CONFIG_FILE, "w") as f:
+    with open(CONFIG_FILE, "w",encoding="utf-8") as f:
         f.writelines(lines)
 
 def clean_gnucash_folder():
@@ -71,16 +73,6 @@ def clean_gnucash_folder():
             shutil.rmtree(path)
 
 
-def check_decompress_gnucash_file():
-    clean_gnucash_folder()
-    # check if the file is compressed or not if it is compressed the decompress it
-    if "gzip" in  magic.from_file(GNUCASH_FILE) : 
-        # decompress
-        with gzip.open(GNUCASH_FILE, "rb") as f_in:
-            with open(DECOMPRESSED_GNUCASH_FILE, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-                os.replace(DECOMPRESSED_GNUCASH_FILE, GNUCASH_FILE)
-
 def date_to_iso(text) -> date :
     # adaptive date selection (- / .) (EU standard or US) """
     """Accept YYYY-MM-DD, DD-MM-YYYY, or the same with / . or space separators."""
@@ -93,11 +85,7 @@ def date_to_iso(text) -> date :
 def merge_mapped_transaction(m) -> bool:
     if m["day_diff"] == 0:
         return False
-    d = m["bank"]["date"]
-    tx = m["gnucash"]["transaction"]
-    tx.BeginEdit()
-    tx.SetDate(d.day, d.month, d.year)
-    tx.CommitEdit()
+    set_transaction_date(m["gnucash"]["transaction"], m["bank"]["date"])
     return True
 
 def needs_matching(method):
@@ -121,15 +109,9 @@ class Entry:
 class App(BASE):
     def __init__(self):
         super().__init__()
-        self.session = gnucash.Session("xml://"+ GNUCASH_FILE)
         self.executor = ThreadPoolExecutor(max_workers=1)
-        self.book = self.session.book
-        self.act_root = self.book.get_root_account()
-        self.act_imbalance = find_account_including(self.act_root,ACT_IMBALANCE)
-        self.act_payable = find_account_including(self.act_root,ACT_PAYABLE_ACT_NAME)
-        self.act_receivable = find_account_including(self.act_root,ACT_RECEIVABLE_ACT_NAME) 
-        self.act_banque_actif = find_account_including(self.act_root,ACT_BANQUE_ACTIF)
-        self.act_charges = find_account_including(self.act_root,CHARGES_ACT_NAME)
+        self.session = Session(GNUCASH_FILE)
+        self._load_accounts()
         self.supposed_answers = {}
         self.transactions = []
         self.second_compta_var = tk.BooleanVar(value = DEFAULT_SECOND_COMPTA)
@@ -144,6 +126,15 @@ class App(BASE):
         self.update_idletasks()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry(f"+{(sw - self.winfo_width()) // 2}+{(sh - self.winfo_height()) // 2}")
+
+    def _load_accounts(self):
+        self.book = self.session.book
+        self.act_root = self.book.get_root_account()
+        self.act_imbalance = find_account_including(self.act_root, ACT_IMBALANCE)
+        self.act_payable = find_account_including(self.act_root, ACT_PAYABLE_ACT_NAME)
+        self.act_receivable = find_account_including(self.act_root, ACT_RECEIVABLE_ACT_NAME)
+        self.act_banque_actif = find_account_including(self.act_root, ACT_BANQUE_ACTIF)
+        self.act_charges = find_account_including(self.act_root, CHARGES_ACT_NAME)
 
     def _on_cat_change(self, *_):
         try:
@@ -307,7 +298,7 @@ class App(BASE):
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
 
         # End button
-        btn_end = self._btn(outer, "  Fermer\n without push  ", lambda: exit() , activebackground="#D8811D", width=9, height=1)
+        btn_end = self._btn(outer, "  Fermer\n without push  ", lambda: sys.exit() , activebackground="#D8811D", width=9, height=1)
         btn_end.pack(pady=(15, 15),padx=(30, 50),side = tk.LEFT)
         self._on_cat_change()  # populate on startup
         self._build_transaction_panel(paned)
@@ -495,21 +486,23 @@ class App(BASE):
     def _set_file(self, path):
         self._reset()
         if path in self.supposed_answers and self.supposed_answers[path] != None :
-            ans = self.supposed_answers[path]
-            self.name_var.set(ans[0])
-            self.date_var.set(ans[1])
-            self.desc_var.set(ans[2])
-            self.amount_var.set(ans[3])
-            if ans[4] != None :
-                try :
-                    for c in CATEGORIES:
-                        for p in get_poles( date_to_iso(self.date_var.get()), c):
-                            if ans[4] in p : 
-                                self.pole_var.set(p)
-                                self.cat_var.set(c)
-                except : 
-                    self.pole_var.set("")
-                    self.cat_var.set("")
+            ans = self.supposed_answers.get(path)
+            if ans:
+                name, d, desc, amount, pole = ans
+                if name:   self.name_var.set(name)
+                if d:      self.date_var.set(d)
+                if desc:   self.desc_var.set(desc)
+                if amount: self.amount_var.set(amount)
+                if pole:
+                    try:
+                        for c in CATEGORIES:
+                            for p in get_poles(date_to_iso(self.date_var.get()), c):
+                                if pole in p:
+                                    self.pole_var.set(p)
+                                    self.cat_var.set(c)
+                    except Exception:
+                        self.pole_var.set("")
+                        self.cat_var.set("")
         self.pdf_path.set(path)
         self._refresh_preview()
         self._load_pdf_preview(path)
@@ -590,8 +583,6 @@ class App(BASE):
         source_dir = os.path.dirname(source)
         new_source_path = os.path.join(source_dir, filename)
         os.rename(source, new_source_path)
-        #! so we decompress
-        check_decompress_gnucash_file()
         print("Inserted     "+ description)
         type_pole_charge_act = find_account_including(self.charge_pole_act, self.pole_charge_type_var_str.get())
         tx = add_transaction(self.book,self.act_payable,type_pole_charge_act,amount,description,d)
@@ -627,19 +618,33 @@ class App(BASE):
         self.session.end()
         self.executor.shutdown(wait=False,cancel_futures=True)
         clean_gnucash_folder()
-        self._copy_t_clip()
-        exit()
+        if self.transactions:
+            self._copy_t_clip()
+        sys.exit()
 
     def _commit_push_git(self):
         if not GIT_AVAILABLE:
             messagebox.showerror("Erreur", "Git n'est pas installé sur cet ordinateur.")
             return
         self.session.save()
-        self.session.end()
         clean_gnucash_folder()
         check = git_pull()
-        if not check_git_up_to_date(check) :
-            messagebox.showwarning("Attention", "The git repo isn't up to date and there might be conflicts. Please verify/push manually")
+        if not check_git_up_to_date(check):
+            try:
+                # the pull may have changed the gnucash file on disk, so re-read it
+                self.session.reload()
+                self._load_accounts()
+                self.transactions.clear()      # old tx objects don't exist in the new book
+                self.tx_listbox.delete(0, "end")
+            except Exception as e:
+                # most likely merge-conflict markers inside the XML: stop saving to be safe
+                self.session.end()
+                print("Reload failed:", e)
+                messagebox.showerror("Erreur", "The gnucash file could not be re-read (merge conflict?).\n"
+                                            "Fix it with git, then restart the app.")
+                return
+            messagebox.showwarning("Attention", "The git repo wasn't up to date. The file was reloaded and the "
+                                                "transaction list cleared. Check the result, then push again.")
             print(check)
             return
         git_add()
@@ -651,6 +656,10 @@ class App(BASE):
             return
         print(git_push())
         s = self._copy_t_clip()
+        self.session.reload()
+        self._load_accounts()
+        self.transactions.clear()
+        self.tx_listbox.delete(0, "end")
         messagebox.showinfo("Succès", "Les transactions ont été poussées vers le dépôt Git.\n\n" + s)
         
     #! modifies the gnucash file
@@ -660,12 +669,12 @@ class App(BASE):
             return
         git_fetch()
         git_add()
-        if len(self.transactions)>0 : check_decompress_gnucash_file()
         while len(self.transactions)>0:
-            #! so we decompress
             self._delete_tx_i(0)
         run_command("git", "reset","--hard","origin/"+GIT_BRANCH_NAME)
         run_command("git", "clean","-fd")
+        self.session.reload()
+        self._load_accounts()
         messagebox.showinfo("Succès", "votre git a été reset et le fichier gnucash.\n\n")
 
     def _build_preview_panel(self, parent):
@@ -737,7 +746,7 @@ class App(BASE):
     def _load_pdf_preview(self, path):
         try:
             # Image rendering (existing)
-            self._pdf_pages = convert_from_path(path, dpi=120, poppler_path=POPPLER_BIN) # Text extraction (new)
+            self._pdf_pages = render_pdf(path) # Text extraction (new)
             self._pdf_doc = fitz.open(path)
             self._pdf_page_idx = 0
             self._show_current_page()
@@ -815,7 +824,6 @@ class App(BASE):
         self.tx_listbox.delete(i)
 
     def _delete_selected(self):
-        check_decompress_gnucash_file()
         idx = self.tx_listbox.curselection()
         if not idx:
             messagebox.showwarning("Attention", "Sélectionnez une transaction.")
@@ -857,29 +865,25 @@ class App(BASE):
 
 if __name__ == "__main__":
     if not os.path.isdir(BASE_DIR):
-        print("The config file should contain a valid path to the folder UPSecretrariat.") 
-        exit()
+        messagebox.showerror("Unicompta", f"The config file points to a folder that doesn't exist:\n{BASE_DIR}")
+        sys.exit()
     clean_gnucash_folder()
 
+    git_set_terminal_dir(BASE_DIR)      # moved up
+    if GIT_AVAILABLE:
+        git_pull()                      # moved up: the file is updated BEFORE it is loaded
+
     app = None
-    try :
-        # show app
+    try:
         app = App()
-        # define the terminal that we use for git
-        git_set_terminal_dir(BASE_DIR)
-        # start git on the side (skipped if git is not installed)
         if GIT_AVAILABLE:
-            git_pull()
             status_output = git_status()
-            if not check_git_up_to_date(status_output) :
+            if not check_git_up_to_date(status_output):
                 print(status_output)
                 print("There are unpushed commits or conflicts please fix the differences on git ")
-            if not check_git_clean(status_output) :
-                messagebox.showwarning("Not clean you stinky", "The git repo is not clean.\nPlease be careful and check if the changes/commits are intended (via \"git status\")")
-
-        # then app becomes interactive
+            if not check_git_clean(status_output):
+                messagebox.showwarning("Not clean", "The git repo is not clean.\nPlease check the changes/commits (via \"git status\")")
         app.mainloop()
-    finally :
-        # in any scenario we want to make sure that the folder is clean and the session is saved + ended
-        app._close()
-        
+    finally:
+        if app:
+            app._close()

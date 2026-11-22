@@ -8,5 +8,10 @@ echo   - Expiration: 1 year
 echo Click Generate token, copy it, then come back here.
 start https://github.com/settings/personal-access-tokens/new
 set /p TOKEN=Paste the token here: 
-wsl -d Unicompta -- bash /Unicompta/setup_git.sh "%NAME%" "%TOKEN%"
+git config --global user.name "%NAME%"
+git config --global user.email "unicompta@users.noreply.github.com"
+(echo protocol=https& echo host=github.com& echo username=unicompta& echo password=%TOKEN%& echo.) | git credential approve
+set /p BASE=<"%~dp0config"
+cd /d "%BASE%"
+git ls-remote origin >nul 2>&1 && (echo OK: GitHub connection successful) || (echo FAILED: check the token and its permissions on the repository)
 pause

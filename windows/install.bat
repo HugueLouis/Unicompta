@@ -1,10 +1,13 @@
 @echo off
-wsl --status >nul 2>&1 || (wsl --install --no-distribution & echo Restart the PC, then run install.bat again & pause & exit /b)
-wsl --import Unicompta "%LOCALAPPDATA%\Unicompta" "%~dp0Unicompta.tar"
-echo Downloading the accounting data, this can take a few minutes...
-wsl -d Unicompta -- git clone https://github.com/Tresorerie-UP/UPSecretrariat.git /data/UPSecretrariat
-for /f "delims=" %%i in ('wsl -d Unicompta wslpath -u "%USERPROFILE:\=/%/Downloads"') do set DL=%%i
-wsl -d Unicompta -- bash -c "printf '/data/UPSecretrariat/\n%%s/\n' '%DL%' > /Unicompta/config"
+chcp 65001 >nul
+where git >nul 2>&1 || (echo Install Git for Windows first: https://git-scm.com/download/win & pause & exit /b)
+set "DATA=%LOCALAPPDATA%\Unicompta\UPSecretrariat"
+if not exist "%DATA%" (
+    echo Downloading the accounting data, this can take a few minutes...
+    git clone https://github.com/Tresorerie-UP/UPSecretrariat.git "%DATA%"
+)
+> "%~dp0config" echo %DATA%\
+>> "%~dp0config" echo %USERPROFILE%\Downloads\
 call "%~dp0setup_git.bat"
-echo Installation complete. Use run.bat to start Unicompta.
+echo Installation complete. Run Unicompta.exe
 pause
