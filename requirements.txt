@@ -1,0 +1,8 @@
+tkinterdnd2
+pdf2image
+Pillow
+pymupdf
+copykitten
+python-magic; sys_platform != "win32"
+python-magic-bin; sys_platform == "win32"
+ollama
