@@ -2,7 +2,7 @@ import os,re
 from datetime import date
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
-CONFIG_FILE = "config"
+CONFIG_FILE = os.path.join(APP_DIR, "config")
 
 DEBUG = 0
 with open(CONFIG_FILE) as f : 

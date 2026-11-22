@@ -7,7 +7,7 @@ from lib.matching import *
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
-import gzip , shutil, magic, fitz, copykitten
+import gzip , shutil, magic, fitz, copykitten, sys
 from tkinter import ttk, filedialog, messagebox
 from decimal import Decimal
 from pathlib import Path
@@ -16,6 +16,7 @@ from PIL import ImageTk
 from dataclasses import dataclass
 import functools
 
+POPPLER_BIN = os.path.join(sys._MEIPASS, "poppler", "bin") if getattr(sys, "frozen", False) else None
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
     BASE = TkinterDnD.Tk
@@ -745,8 +746,7 @@ class App(BASE):
     def _load_pdf_preview(self, path):
         try:
             # Image rendering (existing)
-            self._pdf_pages = convert_from_path(path, dpi=120)
-            # Text extraction (new)
+            self._pdf_pages = convert_from_path(path, dpi=120, poppler_path=POPPLER_BIN) # Text extraction (new)
             self._pdf_doc = fitz.open(path)
             self._pdf_page_idx = 0
             self._show_current_page()
