@@ -82,26 +82,18 @@ def _similarity(a, b):
     return difflib.SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
 
 
-def match_csv_to_gnucash(csv_path, book, account,  start_date, end_date):#TODO date
+def match_csv_to_gnucash(csv_path, book, account, start_date, end_date):
     """
-    Returns a dict:
-        mapped:  list of {"bank": row, "gnucash": tx_info, "day_diff": int, "similarity": float}
-        missing: bank rows with no GnuCash counterpart
-        extra:   GnuCash transactions (on `account`) with no bank counterpart
-    A match requires the exact same signed amount.
-    Each transaction is matched at most once. Closest date wins first, then
-    the most similar description.
+    Compare the bank CSV with the GnuCash transactions on `account`, keeping only
+    start_date <= date <= end_date (both inclusive).
+    Returns {"mapped": [...], "missing": [...], "extra": [...]}.
+    A match requires the same signed amount; each transaction matches at most once.
     """
-    bank_rows = read_bank_csv(csv_path)
-    if not bank_rows:
-        return {"mapped": [], "missing": [], "extra": []}
-    
-    gnc_txs = list_transactions(account, start_date, end_date,False,filter_by_end_date=False)
+    bank_rows = [b for b in read_bank_csv(csv_path) if start_date <= b["date"] <= end_date]
+    gnc_txs = list_transactions(account, start_date, end_date)
 
-    # Build all valid candidate pairs
     candidates = []
     for i, b in enumerate(bank_rows):
-        if b["date"]<start_date:continue
         for j, g in enumerate(gnc_txs):
             if b["amount"] != g.get("amount"):
                 continue
@@ -109,7 +101,6 @@ def match_csv_to_gnucash(csv_path, book, account,  start_date, end_date):#TODO d
             sim = _similarity(b["description"], g["description"])
             candidates.append((day_diff, -sim, i, j))
 
-    # Greedy one-to-one assignment: best candidates first
     candidates.sort()
     used_bank, used_gnc = set(), set()
     mapped = []
@@ -125,15 +116,13 @@ def match_csv_to_gnucash(csv_path, book, account,  start_date, end_date):#TODO d
             "similarity": -neg_sim,
         })
 
-    missing = [b for i, b in enumerate(bank_rows) if i not in used_bank and b["date"]>start_date]
+    missing = [b for i, b in enumerate(bank_rows) if i not in used_bank]
     extra = [g for j, g in enumerate(gnc_txs) if j not in used_gnc]
-    
+
     missing.sort(key=lambda m: m["date"], reverse=True)
     extra.sort(key=lambda m: m["date"], reverse=True)
     mapped.sort(key=lambda m: m["bank"]["date"], reverse=True)
-
     return {"mapped": mapped, "missing": missing, "extra": extra}
-
 
 # ---------------------------------------------------------------- display helpers
 

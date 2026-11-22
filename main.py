@@ -352,6 +352,15 @@ class App(BASE):
         self.match_csv_path = None
         tab = tk.Frame(self.nb, bg=WHITE, padx=20, pady=20)
         self.nb.add(tab, text="second writtings")
+        rng = tk.Frame(tab, bg=WHITE)
+        rng.pack(fill="x", pady=(0, 10))
+        self.start_var = tk.StringVar(value="31.08.2026")
+        self.end_var = tk.StringVar(value="31.08.2099")
+        for label, var in (("Du (JJ.MM.AAAA)", self.start_var), ("Au (JJ.MM.AAAA)", self.end_var)):
+            tk.Label(rng, text=label, bg=WHITE, fg=TEXT, font=("Helvetica", 11)).pack(side="left", padx=(0, 6))
+            entry = tk.Entry(rng, textvariable=var, width=12, font=("Helvetica", 11))
+            entry.pack(side="left", padx=(0, 16))
+            entry.bind("<Return>", lambda _e: self._run_matching())
 
         top = tk.Frame(tab, bg=WHITE)
         top.pack(fill="x")
@@ -405,7 +414,14 @@ class App(BASE):
             messagebox.showwarning("Attention", "First choose a csv in postfinance")
             return
 
-        result = match_csv_to_gnucash(self.match_csv_path, self.book, self.act_banque_actif, date_to_iso("31.08.2026"),  date_to_iso("31.08.2099")) #TODO put input for dates
+        try:
+            start, end = date_to_iso(self.start_var.get()), date_to_iso(self.end_var.get())
+            if start > end:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Erreur", "Format de date invalide ou fin avant début.\nUtilisez JJ.MM.AAAA.")
+            return
+        result = match_csv_to_gnucash(self.match_csv_path, self.book, self.act_banque_actif, start, end)
         self.mapped = result["mapped"]      # keep full data for the merge step
         self.missing = result["missing"]
         self.extra = result["extra"]

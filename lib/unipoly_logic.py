@@ -1,5 +1,8 @@
 import os,re
 from datetime import date
+import sys
+
+APP_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 CONFIG_FILE = os.path.join(APP_DIR, "config")
