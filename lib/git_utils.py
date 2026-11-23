@@ -12,11 +12,12 @@ def run_command(*command_str):
     if command_str[0] == "git" and not GIT_AVAILABLE:
         return "git is not installed on this computer"
     try:
-        result = subprocess.run(
-            command_str,
-            cwd=terminal_dir,
-            capture_output=True,
-            text=True
+        result = result = subprocess.run(
+            command_str, cwd=terminal_dir, capture_output=True,
+            text=True, encoding="utf-8", errors="replace",
+            stdin=subprocess.DEVNULL,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except FileNotFoundError:
         return f"command not found: {command_str[0]}"
