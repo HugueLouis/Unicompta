@@ -118,12 +118,12 @@ class Book:
     def get_root_account(self):
         return next(a for a in self.accounts.values() if a.type == "ROOT")
 
-    def add_multi_transaction(self, legs, description, date):
+    def add_multi_transaction(self, legs, description, date, guid=None):
         """legs = [(account, value), ...]; the values must sum to 0."""
         if sum(v for _, v in legs) != 0:
             raise ValueError("unbalanced transaction: " + description)
         tx = _sub(self.el, "gnc:transaction", version="2.0.0")
-        _sub(tx, "trn:id", uuid.uuid4().hex, type="guid")
+        _sub(tx, "trn:id", guid or uuid.uuid4().hex, type="guid")
         cur = _sub(tx, "trn:currency")
         _sub(cur, "cmdty:space", "CURRENCY")
         _sub(cur, "cmdty:id", "CHF")

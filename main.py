@@ -6,6 +6,7 @@ from lib.git_utils import *
 from lib.matching import *
 from lib.budget_tab import BudgetTab
 from lib.closing_tab import ClosingTab
+from lib.history_tab import HistoryTab
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
@@ -321,6 +322,9 @@ class App(BASE):
         self.closing_tab = ClosingTab(self.nb, self)
         self.nb.add(self.closing_tab, text="Clôture")
 
+        self.history_tab = HistoryTab(self.nb, self)
+        self.nb.add(self.history_tab, text="Historique")
+
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
                  bg=WHITE, fg=TEXT, anchor="w").grid(
@@ -342,6 +346,8 @@ class App(BASE):
             self.budget_tab.refresh()
         elif cur == str(self.closing_tab):
             self.closing_tab.refresh()
+        elif cur == str(self.history_tab):
+            self.history_tab.refresh()
 
     def _pick_repo(self):
         folder = filedialog.askdirectory(initialdir=BASE_DIR, title="Choisir le dossier UPSecretrariat")
