@@ -17,7 +17,7 @@ COMMON=["*Si ce n′est pas votre première demande, ces champs ne sont pas obli
         "*Si ce n′est pas votre première demande, ces champs ne sont pas obligatoires. <3",
         "NPA, Localité * :",
         "IBAN * :",
-        "Signature :", "Pôle d′activité :","Date de la demande :", "Prénom NOM :","Motif :",
+        "Signature :","Date de la demande :","Motif :",
         "Montant(CHF) :","Demande de Remboursement"]
 
 TEXT_MODEL_old = "gemma3:1b"

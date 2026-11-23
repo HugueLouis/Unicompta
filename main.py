@@ -14,6 +14,8 @@ from decimal import Decimal
 from pathlib import Path
 from dataclasses import dataclass
 import functools
+import subprocess
+from lib.budget_tab import BudgetTab
 
 BASE = tk.Tk
 
@@ -122,6 +124,7 @@ class App(BASE):
         self.pdf_path = tk.StringVar()
         self.option_add("*TCombobox*Listbox.font", ("Helvetica", 17))
         self.option_add("*TCombobox.font", ("Helvetica", 17))
+        self._restart = False
         self._build()
         self.update_idletasks()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
@@ -173,6 +176,12 @@ class App(BASE):
         # Left: form
         outer = tk.Frame(paned, bg=WHITE, padx=28, pady=24)
         paned.add(outer, minsize=480)
+        repo_row = tk.Frame(outer, bg=WHITE)
+        repo_row.pack(fill="x", pady=(0, 10))
+        tk.Label(repo_row, text="Repo UPSecretrariat :", font=("Helvetica", 13),
+                bg=WHITE, fg=TEXT).pack(side="left")
+        tk.Label(repo_row, text=BASE_DIR, font=("Helvetica", 11), fg=GRAY, bg=WHITE).pack(side="left", padx=8)
+        self._btn(repo_row, "Choisir le repo", self._pick_repo).pack(side="left")
 
         # Right: PDF preview
         right = tk.Frame(paned, bg=LIGHT, padx=8, pady=8)
@@ -304,6 +313,9 @@ class App(BASE):
         self._build_transaction_panel(paned)
 
         self._build_matching_tab()
+        self.budget_tab = BudgetTab(self.nb, self, CATEGORIES)
+        self.nb.add(self.budget_tab, text="Budget")
+        self.nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -319,6 +331,24 @@ class App(BASE):
             width=width, insertbackground=BLUE,
         )
 
+
+    def _on_tab_changed(self, _=None):
+        if self.nb.select() == str(self.budget_tab):
+            self.budget_tab.refresh()          # always up to date with the open book
+
+    def _pick_repo(self):
+        folder = filedialog.askdirectory(initialdir=BASE_DIR, title="Choisir le dossier UPSecretrariat")
+        if not folder:
+            return
+        if not is_valid_repo(folder):
+            messagebox.showerror("Erreur", "Ce dossier ne contient pas\n1 - Comptabilite/Unipoly.gnucash")
+            return
+        if not messagebox.askyesno("Redémarrage", "L'application va redémarrer avec ce repo.\n"
+                                "Les transactions non poussées restent dans l'ancien repo. Continuer ?"):
+            return
+        set_config_line(0, folder)
+        self._restart = True
+        sys.exit()          # mainloop ends -> finally -> _close() -> relaunch
     #! __ Other pages ___________________________________________________________
     def _build_matching_tab(self):
         self.match_csv_path = None
@@ -620,6 +650,9 @@ class App(BASE):
         clean_gnucash_folder()
         if self.transactions:
             self._copy_t_clip()
+        if self._restart:
+            args = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(sys.argv[0])]
+            subprocess.Popen(args + sys.argv[1:], env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"})
         sys.exit()
 
     def _commit_push_git(self):

@@ -8,15 +8,61 @@ APP_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 CONFIG_FILE = os.path.join(APP_DIR, "config")
 
 DEBUG = 0
-try:
-    with open(CONFIG_FILE, encoding="utf-8") as f:
-        BASE_DIR = os.path.expanduser(f.readline().strip())
-except FileNotFoundError:
+GNUCASH_RELATIVE = os.path.join("1 - Comptabilite", "Unipoly.gnucash")
+
+
+def is_valid_repo(folder: str) -> bool:
+    """A valid repo folder contains 1 - Comptabilite/Unipoly.gnucash"""
+    return bool(folder) and os.path.isfile(os.path.join(os.path.expanduser(folder), GNUCASH_RELATIVE))
+
+
+def set_config_line(index: int, value: str):
+    """Write one line of the config file (0 = repo folder, 1 = pdf folder), keeping the other."""
+    try:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except FileNotFoundError:
+        lines = []
+    defaults = ["", os.path.join(os.path.expanduser("~"), "Downloads") + "/"]
+    while len(lines) <= max(index, 1):
+        lines.append(defaults[len(lines)] if len(lines) < 2 else "")
+    lines[index] = value
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def _ask_repo_folder() -> str:
     import tkinter as tk
-    from tkinter import messagebox
-    tk.Tk().withdraw()
-    messagebox.showerror("Unicompta", f"config file not found:\n{CONFIG_FILE}\n\nRun install.bat first.")
-    sys.exit(1)
+    from tkinter import filedialog, messagebox
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo("Unicompta", "Select the UPSecretrariat folder (the cloned repository).\n"
+                                     f"It must contain: {GNUCASH_RELATIVE}")
+    folder = filedialog.askdirectory(title="UPSecretrariat folder")
+    root.destroy()
+    return folder
+
+
+def _load_base_dir() -> str:
+    try:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            base = os.path.expanduser(f.readline().strip())
+    except FileNotFoundError:
+        base = ""
+    changed = False
+    while not is_valid_repo(base):          # missing config or wrong path -> ask instead of failing
+        base = _ask_repo_folder()
+        if not base:
+            sys.exit(1)
+        changed = True
+    if not base.endswith(("/", "\\")):
+        base += "/"
+    if changed:
+        set_config_line(0, base)
+    return base
+
+
+BASE_DIR = _load_base_dir()
 
 BASE_DIR_OUTFLOW    = os.path.expanduser(BASE_DIR + ("4 - Justifications Sorties (S)/"))   # dossier racine
 BASE_GNUCASH_FOLDER = os.path.expanduser( BASE_DIR +"1 - Comptabilite/")
