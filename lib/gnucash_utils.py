@@ -118,7 +118,10 @@ class Book:
     def get_root_account(self):
         return next(a for a in self.accounts.values() if a.type == "ROOT")
 
-    def add_transaction(self, from_account, to_account, amount, description, date):
+    def add_multi_transaction(self, legs, description, date):
+        """legs = [(account, value), ...]; the values must sum to 0."""
+        if sum(v for _, v in legs) != 0:
+            raise ValueError("unbalanced transaction: " + description)
         tx = _sub(self.el, "gnc:transaction", version="2.0.0")
         _sub(tx, "trn:id", uuid.uuid4().hex, type="guid")
         cur = _sub(tx, "trn:currency")
@@ -128,7 +131,7 @@ class Book:
         _sub(_sub(tx, "trn:date-entered"), "ts:date", _now_ts())
         _sub(tx, "trn:description", description)
         splits = _sub(tx, "trn:splits")
-        for acc, val in ((to_account, amount), (from_account, -amount)):
+        for acc, val in legs:
             s = _sub(splits, "trn:split")
             _sub(s, "split:id", uuid.uuid4().hex, type="guid")
             _sub(s, "split:reconciled-state", "n")
@@ -148,6 +151,9 @@ class Book:
         obj = Transaction(tx, self)
         self.transactions.append(obj)
         return obj
+
+    def add_transaction(self, from_account, to_account, amount, description, date):
+        return self.add_multi_transaction([(to_account, amount), (from_account, -amount)], description, date)
 
     def remove_transaction(self, tx):
         for s in tx.splits:
@@ -228,6 +234,13 @@ def add_transaction(book, from_account, to_account, amount_decimal, description,
     if date is None:
         date = datetime.date.today()
     return book.add_transaction(from_account, to_account, Decimal(amount_decimal), description, date)
+
+
+def add_multi_transaction(book, splits, description, date=None) -> Transaction:
+    """Several splits in one transaction: splits = [(account, value), ...], values sum to 0."""
+    if date is None:
+        date = datetime.date.today()
+    return book.add_multi_transaction([(a, Decimal(v)) for a, v in splits], description, date)
 
 
 def delete_transaction(tx=None):

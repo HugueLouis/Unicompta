@@ -3,9 +3,7 @@
 Spending is read from Actif:Banque principal. Each transaction is attributed with its name,
 e.g. "S2526-API-REMB-3 Name description" -> year 2025-2026, pole API.
 
-Budgets are stored in <repo>/budget.json (repo root, NOT in "1 - Comptabilite/" because
-clean_gnucash_folder() wipes everything there). git_add() uses `git add .`, so the file
-is pushed with the rest and shared between treasurers.
+Budgets are stored in APP_DIR/budget.json.
 """
 import json
 import os

@@ -4,6 +4,8 @@ from lib.unipoly_logic import *
 from lib.gnucash_utils import *
 from lib.git_utils import *
 from lib.matching import *
+from lib.budget_tab import BudgetTab
+from lib.closing_tab import ClosingTab
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date,timedelta
 import tkinter as tk
@@ -13,9 +15,7 @@ from PIL import Image, ImageTk
 from decimal import Decimal
 from pathlib import Path
 from dataclasses import dataclass
-import functools
-import subprocess
-from lib.budget_tab import BudgetTab
+import functools, os, re, subprocess
 
 BASE = tk.Tk
 
@@ -313,9 +313,13 @@ class App(BASE):
         self._build_transaction_panel(paned)
 
         self._build_matching_tab()
+
         self.budget_tab = BudgetTab(self.nb, self, CATEGORIES)
         self.nb.add(self.budget_tab, text="Budget")
         self.nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
+        self.closing_tab = ClosingTab(self.nb, self)
+        self.nb.add(self.closing_tab, text="Clôture")
 
     def _field(self, parent, row, label, widget):
         tk.Label(parent, text=label, font=("Helvetica", 18),
@@ -333,8 +337,11 @@ class App(BASE):
 
 
     def _on_tab_changed(self, _=None):
-        if self.nb.select() == str(self.budget_tab):
-            self.budget_tab.refresh()          # always up to date with the open book
+        cur = self.nb.select()
+        if cur == str(self.budget_tab):
+            self.budget_tab.refresh()
+        elif cur == str(self.closing_tab):
+            self.closing_tab.refresh()
 
     def _pick_repo(self):
         folder = filedialog.askdirectory(initialdir=BASE_DIR, title="Choisir le dossier UPSecretrariat")
